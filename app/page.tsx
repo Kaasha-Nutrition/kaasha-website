@@ -1,7 +1,7 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import About from "@/components/About";
-import Services from "@/components/Services";
+import ServicesTeaser from "@/components/ServicesTeaser";
 import Sports from "@/components/Sports";
 import Why from "@/components/Why";
 import Blog from "@/components/Blog";
@@ -17,7 +17,7 @@ export default function Home() {
       <main id="top">
         <Hero />
         <About />
-        <Services />
+        <ServicesTeaser />
         <Sports />
         <Why />
         <Blog />

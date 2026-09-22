@@ -61,6 +61,29 @@ export const SERVICES: Service[] = [
   { name: "Grocery Tours", cat: "soon", icon: "soon", duration: "", price: null, img: "vallari-citrus.jpg", desc: "Coming soon." }
 ];
 
+/**
+ * The broad list of nutrition areas Vallari covers, migrated from the
+ * "Nutrition Services" panel on the original Kaasha Wix homepage. Used for
+ * the homepage services teaser; the full bookable catalogue above (with
+ * pricing and descriptions) lives on the dedicated /services page.
+ */
+export const NUTRITION_SERVICES_INTRO =
+  "If you're ready to strike a perfect balance with food and lifestyle, I am here for you with super-customised nutrition. I offer personalised nutrition plans in a variety of areas, including:";
+
+export const NUTRITION_SERVICES_LIST = [
+  "Weight Management",
+  "Sports Nutrition",
+  "Diabetes",
+  "Thyroid",
+  "PCOS",
+  "Pregnancy & Lactation",
+  "Child Nutrition",
+  "Management of Hypertension",
+  "Management of Cholesterol",
+  "Personalised diet to reach your health goal",
+  "Bridal diet-to-be — Brides & Grooms"
+];
+
 export type PostCategory = "Healthy Tips" | "Living Well" | "Recipes";
 
 export interface Post {

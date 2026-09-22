@@ -19,7 +19,14 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const presetService = useCallback((name: string) => {
     setSelectedService(name);
     if (typeof document !== "undefined") {
-      document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
+      const contactEl = document.getElementById("contact");
+      if (contactEl) {
+        contactEl.scrollIntoView({ behavior: "smooth" });
+      } else {
+        // Not on the homepage (e.g. the /services page) — the booking
+        // form only lives there, so navigate to it instead of no-oping.
+        window.location.href = "/#contact";
+      }
     }
   }, []);
 
