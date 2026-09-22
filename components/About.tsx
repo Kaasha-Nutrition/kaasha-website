@@ -44,8 +44,8 @@ export default function About() {
               </span>
             ))}
           </div>
-          <Link href="/about" className="btn btn-ghost read-more-btn">
-            Read More About Vallari
+          <Link href="/about" className="btn btn-primary read-more-btn">
+            Read more
           </Link>
         </Reveal>
       </div>
