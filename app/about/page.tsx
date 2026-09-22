@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import Reveal from "@/components/Reveal";
+import RingBadge from "@/components/RingBadge";
 import { CheckIcon } from "@/components/icons";
 import { CREDENTIALS, SPECIALTIES, STORY } from "@/lib/about-content";
 
@@ -35,7 +36,7 @@ export default function AboutPage() {
         <article className="post-article">
           <div className="wrap about-grid about-page-intro">
             <Reveal className="about-art">
-              <div className="ring" />
+              <RingBadge />
               <div className="main">
                 <Image
                   src="/images/vallari-about-portrait.jpg"

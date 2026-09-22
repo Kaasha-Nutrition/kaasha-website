@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import Reveal from "./Reveal";
+import RingBadge from "./RingBadge";
 import { CheckIcon } from "./icons";
 import { CREDENTIALS, SPECIALTIES } from "@/lib/about-content";
 
@@ -10,7 +11,7 @@ export default function About() {
       <div className="blob" style={{ width: 420, height: 420, background: "var(--green-500)", top: -120, left: -160 }} />
       <div className="wrap about-grid">
         <Reveal className="about-art">
-          <div className="ring" />
+          <RingBadge />
           <div className="main">
             <Image src="/images/vallari-about-portrait.jpg" alt="Vallari Shah, Lifestyle & Sports Nutritionist" width={1200} height={1800} priority />
           </div>

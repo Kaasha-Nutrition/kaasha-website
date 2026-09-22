@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { FacebookIcon, InstagramIcon, PinterestIcon } from "./icons";
 
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -33,9 +34,21 @@ export default function Footer() {
           <div>
             <h4>Follow</h4>
             <ul>
-              <li><a href="https://www.facebook.com/kaashabyvallarishah" target="_blank" rel="noopener">Facebook</a></li>
-              <li><a href="https://www.instagram.com/kaashabyvallarishah/" target="_blank" rel="noopener">Instagram</a></li>
-              <li><a href="https://in.pinterest.com/beautyspa11/" target="_blank" rel="noopener">Pinterest</a></li>
+              <li>
+                <a href="https://www.facebook.com/kaashabyvallarishah" target="_blank" rel="noopener">
+                  <FacebookIcon /> Facebook
+                </a>
+              </li>
+              <li>
+                <a href="https://www.instagram.com/kaashabyvallarishah/" target="_blank" rel="noopener">
+                  <InstagramIcon /> Instagram
+                </a>
+              </li>
+              <li>
+                <a href="https://in.pinterest.com/beautyspa11/" target="_blank" rel="noopener">
+                  <PinterestIcon /> Pinterest
+                </a>
+              </li>
             </ul>
           </div>
         </div>
