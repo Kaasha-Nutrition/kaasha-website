@@ -74,28 +74,9 @@ export default function Hero() {
             schedule — clinical where it needs to be, livable every day.
           </p>
           <div className="hero-ctas">
-            <a className="btn btn-primary" href="#services">
+            <a className="btn btn-primary" href="/services">
               Explore Services
             </a>
-          </div>
-          <blockquote className="hero-quote">
-            &ldquo;I don&apos;t believe in good or bad foods, just in foods that are better for you than
-            others.&rdquo;
-            <cite>— Vallari Shah</cite>
-          </blockquote>
-          <div className="hero-stats">
-            <div>
-              <b>11</b>
-              <span>Programs</span>
-            </div>
-            <div>
-              <b>20+</b>
-              <span>Articles</span>
-            </div>
-            <div>
-              <b>2</b>
-              <span>Disciplines</span>
-            </div>
           </div>
         </div>
       </div>
