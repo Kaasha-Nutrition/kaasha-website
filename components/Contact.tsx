@@ -5,9 +5,9 @@ import Reveal from "./Reveal";
 import { MailIcon, PhoneIcon, PinIcon, ClockIcon, TagIcon, FacebookIcon, InstagramIcon, PinterestIcon, WhatsappIcon } from "./icons";
 import { SERVICES, CAT_LABEL } from "@/lib/data";
 import { useBooking } from "@/lib/booking-context";
+import { PRACTICE_ADDRESS } from "@/lib/contact-info";
 
 const BOOKABLE = SERVICES.filter((s) => s.cat !== "soon");
-const PRACTICE_ADDRESS = "Horizon Bldg, above Bina Punjani Hair Salon, Chogm Road, Porvorim, Goa – 403511";
 
 export default function Contact() {
   const { selectedService, setSelectedService } = useBooking();

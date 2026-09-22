@@ -19,8 +19,8 @@ export default function AboutPage() {
     <>
       <Header />
       <main id="top">
-        <section className="about-banner">
-          <div className="about-banner-bg">
+        <section className="page-banner">
+          <div className="page-banner-bg">
             <Image src="/images/hero-greens-flatlay.jpg" alt="" fill sizes="100vw" priority />
           </div>
           <div className="wrap">

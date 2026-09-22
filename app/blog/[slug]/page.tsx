@@ -43,36 +43,31 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     <>
       <Header />
       <main id="top">
+        <section className="page-banner">
+          <div className="page-banner-bg">
+            <Image src={`/images/${post.img}`} alt="" fill sizes="100vw" priority />
+          </div>
+          <div className="wrap">
+            <Link href="/#blog" className="post-back">
+              ← Back to Blog
+            </Link>
+            <span className={`post-cat ${CAT_CLASS[post.cat]}`}>{post.cat}</span>
+            <h1>{post.t}</h1>
+          </div>
+        </section>
+
         <article className="post-article">
-          <div className="wrap post-article-head">
-            <Reveal as="div">
-              <Link href="/#blog" className="post-back">
-                ← Back to Blog
-              </Link>
-              <span className={`post-cat ${CAT_CLASS[post.cat]}`}>{post.cat}</span>
-              <h1>{post.t}</h1>
-              <div className="post-byline">
-                <Image src="/images/vallari-headshot.jpg" alt="Vallari Shah" width={40} height={40} className="post-byline-avatar" />
-                <div>
-                  <span className="post-byline-name">Vallari Shah</span>
-                  <span className="post-byline-meta">
-                    {post.date} · {post.read} read
-                  </span>
-                </div>
+          <div className="wrap post-byline-row">
+            <Reveal as="div" className="post-byline">
+              <Image src="/images/vallari-headshot.jpg" alt="Vallari Shah" width={40} height={40} className="post-byline-avatar" />
+              <div>
+                <span className="post-byline-name">Vallari Shah</span>
+                <span className="post-byline-meta">
+                  {post.date} · {post.read} read
+                </span>
               </div>
             </Reveal>
           </div>
-
-          <Reveal as="div" className="post-article-media">
-            <Image
-              src={`/images/${post.img}`}
-              alt={post.t}
-              fill
-              sizes="(max-width: 900px) 100vw, 900px"
-              style={{ objectFit: "cover" }}
-              priority
-            />
-          </Reveal>
 
           <Reveal as="div" className="wrap post-article-body">
             {blocks.map((b, i) => {

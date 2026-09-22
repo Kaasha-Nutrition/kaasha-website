@@ -8,7 +8,7 @@ const NAV_LINKS = [
   { href: "/#services", label: "Services" },
   { href: "/#sports", label: "Sports Nutrition" },
   { href: "/#blog", label: "Blog & Recipes" },
-  { href: "/#contact", label: "Contact" }
+  { href: "/contact", label: "Contact" }
 ];
 
 export default function Header() {

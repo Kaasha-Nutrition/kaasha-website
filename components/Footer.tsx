@@ -26,6 +26,7 @@ export default function Footer() {
             <ul>
               <li><a href="mailto:vallari@kaasha.in">vallari@kaasha.in</a></li>
               <li><a href="tel:+917769090258">+91 77690 90258</a></li>
+              <li><a href="/contact">Contact Us</a></li>
               <li><a href="/#contact">Book a Consultation</a></li>
             </ul>
           </div>
