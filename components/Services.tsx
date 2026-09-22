@@ -28,7 +28,7 @@ export default function Services() {
           <span className="eyebrow">Services</span>
           <h2>Eleven ways to work together — one consultation at a time.</h2>
           <p>
-            Every session is one-on-one with Vallari at her Porvorim practice, priced individually with no
+            Every session is one-on-one with Vallari at her practice, priced individually with no
             bundled packages. Please give at least 24 hours&apos; notice to reschedule or cancel.
           </p>
         </Reveal>

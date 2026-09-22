@@ -5,7 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Kaasha by Vallari Shah — Lifestyle & Sports Nutrition",
   description:
-    "Personalised lifestyle and sports nutrition programs by Vallari Shah, based in Porvorim, Goa. Clinical nutrition, sports performance plans, and one-on-one consultations.",
+    "Personalised lifestyle and sports nutrition programs by Vallari Shah. Clinical nutrition, sports performance plans, and one-on-one consultations.",
   metadataBase: new URL("https://kaasha.in")
 };
 

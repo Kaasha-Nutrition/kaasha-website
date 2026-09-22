@@ -54,14 +54,6 @@ export default function Hero() {
     }, AUTOPLAY_MS);
   }
 
-  function prev() {
-    goTo((active - 1 + SLIDES.length) % SLIDES.length);
-  }
-
-  function next() {
-    goTo((active + 1) % SLIDES.length);
-  }
-
   return (
     <section className="hero">
       <div className="hero-bg">
@@ -72,27 +64,15 @@ export default function Hero() {
         ))}
       </div>
 
-      <button className="hero-nav prev" onClick={prev} aria-label="Previous slide">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-          <path d="M15 18 9 12l6-6" />
-        </svg>
-      </button>
-      <button className="hero-nav next" onClick={next} aria-label="Next slide">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-          <path d="m9 18 6-6-6-6" />
-        </svg>
-      </button>
-
       <div className="wrap">
         <div className="hero-content">
-          <span className="eyebrow">Lifestyle &amp; Sports Nutrition · Porvorim, Goa</span>
+          <span className="eyebrow">Lifestyle &amp; Sports Nutrition</span>
           <h1>
-            Food, done right
+            Eat right and the pants
             <br />
-            for how you
-            <br />
-            <em>actually</em> live.
+            <em>won&apos;t</em> be tight.
           </h1>
+          <span className="hero-tagline-cite">— Anonymous</span>
           <p className="hero-sub">
             Vallari Shah builds personalised nutrition plans around your body, your training and your
             schedule — clinical where it needs to be, livable every day.

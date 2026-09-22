@@ -10,7 +10,7 @@ export default function Footer() {
             <div className="logo-plate">
               <Image src="/images/logo.png" alt="Kaasha by Vallari Shah" width={1021} height={400} />
             </div>
-            <p>Vallari Shah — Lifestyle &amp; Sports Nutritionist, based in Porvorim, Goa.</p>
+            <p>Vallari Shah — Lifestyle &amp; Sports Nutritionist.</p>
           </div>
           <div>
             <h4>Site</h4>
@@ -40,7 +40,6 @@ export default function Footer() {
         </div>
         <div className="foot-bottom">
           <span>© {year} Kaasha by Vallari Shah. All rights reserved.</span>
-          <span>Porvorim, Goa, India</span>
         </div>
       </div>
     </footer>

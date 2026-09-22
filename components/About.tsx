@@ -1,21 +1,8 @@
 import Image from "next/image";
+import Link from "next/link";
 import Reveal from "./Reveal";
 import { CheckIcon } from "./icons";
-
-const CREDENTIALS = [
-  "Bachelor's Degree, Applied Nutrition",
-  "Diploma in Cosmetology",
-  "Trained at Harvard University, USA",
-  "Institute for Integrative Nutrition"
-];
-
-const CHIPS = [
-  "Digestive Wellness",
-  "Food Allergies & Intolerance",
-  "Healthy Cooking & Meal Planning",
-  "Diet & Detoxification",
-  "Elimination Diets"
-];
+import { CREDENTIALS, SPECIALTIES } from "@/lib/about-content";
 
 export default function About() {
   return (
@@ -25,7 +12,7 @@ export default function About() {
         <Reveal className="about-art">
           <div className="ring" />
           <div className="main">
-            <Image src="/images/vallari-appetizer.jpg" alt="Vallari Shah at the table" width={800} height={1000} />
+            <Image src="/images/vallari-about-portrait.jpg" alt="Vallari Shah, Lifestyle & Sports Nutritionist" width={1200} height={1800} priority />
           </div>
           <div className="float">
             <Image src="/images/food-greens-flatlay.jpg" alt="Fresh greens flat-lay" width={400} height={400} />
@@ -50,12 +37,15 @@ export default function About() {
             ))}
           </ul>
           <div className="chips">
-            {CHIPS.map((c) => (
+            {SPECIALTIES.map((c) => (
               <span className="chip" key={c}>
                 {c}
               </span>
             ))}
           </div>
+          <Link href="/about" className="btn btn-ghost read-more-btn">
+            Read More About Vallari
+          </Link>
         </Reveal>
       </div>
     </section>
