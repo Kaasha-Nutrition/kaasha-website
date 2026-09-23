@@ -10,6 +10,18 @@ interface Slide {
 
 const SLIDES: Slide[] = [
   {
+    src: "/images/mainslider-1.jpg",
+    alt: "Woman in activewear drinking fruit-infused water from a glass bottle"
+  },
+  {
+    src: "/images/mainslider-2.jpg",
+    alt: "Woman in a bright kitchen eating a bowl of yoghurt with strawberries, fresh fruit in the background"
+  },
+  {
+    src: "/images/mainslider-3.jpg",
+    alt: "A man and woman running together on a pedestrian bridge"
+  },
+  {
     src: "/images/hero-slide-noodle-bowls.jpg",
     alt: "A vegetable noodle broth bowl and a rice bowl with soft-boiled egg, flat-lay"
   },
