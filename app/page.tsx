@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import About from "@/components/About";
+import MarqueeTicker from "@/components/MarqueeTicker";
 import ServicesTeaser from "@/components/ServicesTeaser";
 import Sports from "@/components/Sports";
 import Why from "@/components/Why";
@@ -17,6 +18,7 @@ export default function Home() {
       <main id="top">
         <Hero />
         <About />
+        <MarqueeTicker />
         <ServicesTeaser />
         <Sports />
         <Why />

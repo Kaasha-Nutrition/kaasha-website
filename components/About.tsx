@@ -8,7 +8,7 @@ import { CREDENTIALS, SPECIALTIES } from "@/lib/about-content";
 export default function About() {
   return (
     <section id="about" className="about">
-      <div className="blob" style={{ width: 420, height: 420, background: "var(--green-500)", top: -120, left: -160 }} />
+      <Image src="/images/about-salad.png" alt="" width={250} height={208} className="about-salad" aria-hidden="true" />
       <div className="wrap about-grid">
         <Reveal className="about-art">
           <RingBadge />
