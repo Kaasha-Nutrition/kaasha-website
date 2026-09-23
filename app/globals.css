@@ -191,10 +191,15 @@ blockquote.pull{font-family:var(--sans);font-weight:600;font-size:21px;line-heig
 .filter-btn{font-family:var(--sans);font-size:13.5px;font-weight:700;padding:10px 20px;border-radius:100px;border:1px solid var(--line);background:var(--paper-raised);color:var(--ink-soft);cursor:pointer;transition:.18s;}
 .filter-btn.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
 .filter-btn:not(.active):hover{border-color:var(--ink-faint);}
-.svc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
-@media (max-width:960px){ .svc-grid{grid-template-columns:repeat(2,1fr);} }
-@media (max-width:640px){ .svc-grid{grid-template-columns:1fr;} }
-.svc-card{background:var(--paper-raised);border:1px solid var(--line-soft);border-radius:var(--radius-md);padding:0;display:flex;flex-direction:column;overflow:hidden;transition:box-shadow .2s ease, transform .2s ease;}
+/* Flexbox (not grid) so an incomplete last row grows to fill the width
+   instead of leaving an empty trailing column — e.g. 11 cards at 3-per-row
+   would otherwise leave the last row's 3rd slot blank right above the
+   footer. flex-grow lets that row's 1–2 cards share the leftover space;
+   max-width keeps a lone last card from stretching edge-to-edge. */
+.svc-grid{display:flex;flex-wrap:wrap;gap:24px;}
+.svc-card{flex:1 1 calc(33.333% - 16px);max-width:calc(66.666% - 8px);background:var(--paper-raised);border:1px solid var(--line-soft);border-radius:var(--radius-md);padding:0;display:flex;flex-direction:column;overflow:hidden;transition:box-shadow .2s ease, transform .2s ease;}
+@media (max-width:960px){ .svc-card{flex-basis:calc(50% - 12px);max-width:100%;} }
+@media (max-width:640px){ .svc-card{flex-basis:100%;max-width:100%;} }
 .svc-card:hover{box-shadow:var(--shadow-soft);transform:translateY(-4px);}
 .svc-thumb{aspect-ratio:16/10;overflow:hidden;position:relative;background:var(--mint);}
 .svc-thumb img{width:100%;height:100%;object-fit:cover;transition:transform .5s ease;}
