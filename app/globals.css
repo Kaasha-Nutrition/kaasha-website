@@ -89,7 +89,7 @@ section{padding-block:100px;position:relative;}
 :root[data-theme="dark"] .blob{opacity:.22;}
 
 /* ---------- Header ---------- */
-header.site{position:sticky;top:env(safe-area-inset-top,0px);z-index:60;background:var(--paper);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line-soft);}
+header.site{position:sticky;top:env(safe-area-inset-top,0px);z-index:60;background:#FFFFFF;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line-soft);}
 .nav-row{display:flex;align-items:center;justify-content:space-between;padding-block:10px;gap:16px;}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;}
 .brand img{height:84px;width:auto;display:block;}
