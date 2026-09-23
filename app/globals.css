@@ -196,7 +196,8 @@ blockquote.pull{font-family:var(--sans);font-weight:600;font-size:21px;line-heig
    would otherwise leave the last row's 3rd slot blank right above the
    footer. flex-grow lets that row's 1–2 cards share the leftover space;
    max-width keeps a lone last card from stretching edge-to-edge. */
-.svc-grid{display:flex;flex-wrap:wrap;gap:24px;}
+.svc-grid{display:flex;flex-wrap:wrap;gap:24px;margin-bottom:96px;}
+@media (max-width:640px){ .svc-grid{margin-bottom:56px;} }
 .svc-card{flex:1 1 calc(33.333% - 16px);max-width:calc(66.666% - 8px);background:var(--paper-raised);border:1px solid var(--line-soft);border-radius:var(--radius-md);padding:0;display:flex;flex-direction:column;overflow:hidden;transition:box-shadow .2s ease, transform .2s ease;}
 @media (max-width:960px){ .svc-card{flex-basis:calc(50% - 12px);max-width:100%;} }
 @media (max-width:640px){ .svc-card{flex-basis:100%;max-width:100%;} }
