@@ -38,7 +38,7 @@ export default function Sports() {
           <div className="sports-cards">
             <div className="sports-card">
               <div className="name">Sports Nutrition</div>
-              <div className="sub">1 hour · in-person, Porvorim</div>
+              <div className="sub">1 hour · in-person, Vadodara</div>
               <div className="price">₹4,500</div>
               <button className="btn btn-primary btn-sm" onClick={() => presetService("Sports Nutrition")}>
                 Book Now

@@ -40,7 +40,7 @@ export default function Contact() {
                       <TagIcon /> {CAT_LABEL[selected.cat]}
                     </li>
                     <li>
-                      <PinIcon /> Chogm Road, Porvorim, Goa
+                      <PinIcon /> Gotri, Vadodara, Gujarat
                     </li>
                   </ul>
                 </>
