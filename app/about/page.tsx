@@ -9,10 +9,20 @@ import RingBadge from "@/components/RingBadge";
 import { CheckIcon } from "@/components/icons";
 import { CREDENTIALS, SPECIALTIES, STORY } from "@/lib/about-content";
 
+const TITLE = "About Vallari Shah — Kaasha by Vallari Shah";
+const DESCRIPTION =
+  "Meet Vallari Shah, Lifestyle & Sports Nutritionist and founder of Kaasha — her story, her philosophy on food, and the credentials behind her practice.";
+
 export const metadata: Metadata = {
-  title: "About Vallari Shah — Kaasha by Vallari Shah",
-  description:
-    "Meet Vallari Shah, Lifestyle & Sports Nutritionist and founder of Kaasha — her story, her philosophy on food, and the credentials behind her practice."
+  title: TITLE,
+  description: DESCRIPTION,
+  alternates: { canonical: "https://kaasha.in/about" },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "https://kaasha.in/about",
+    images: [{ url: "/images/vallari-about-portrait.jpg" }]
+  }
 };
 
 export default function AboutPage() {
@@ -22,7 +32,7 @@ export default function AboutPage() {
       <main id="top">
         <section className="page-banner">
           <div className="page-banner-bg">
-            <Image src="/images/hero-greens-flatlay.jpg" alt="" fill sizes="100vw" priority />
+            <Image src="/images/hero-greens-flatlay.jpg" alt="Fresh greens and healthy ingredients flat-lay" fill sizes="100vw" priority />
           </div>
           <div className="wrap">
             <Link href="/#about" className="post-back">

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import About from "@/components/About";
@@ -10,6 +11,10 @@ import Contact from "@/components/Contact";
 import Closing from "@/components/Closing";
 import Footer from "@/components/Footer";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "https://kaasha.in/" }
+};
 
 export default function Home() {
   return (

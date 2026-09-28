@@ -21,9 +21,19 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const blocks = BLOG_CONTENT[post.slug] ?? [];
   const firstPara = blocks.find((b) => b.type === "p" || b.type === "quote");
   const description = firstPara && "text" in firstPara ? firstPara.text.slice(0, 155) : undefined;
+  const title = `${post.t} — Kaasha by Vallari Shah`;
+  const url = `https://kaasha.in/blog/${post.slug}`;
   return {
-    title: `${post.t} — Kaasha by Vallari Shah`,
-    description
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      type: "article",
+      title,
+      description,
+      url,
+      images: [{ url: `/images/${post.img}` }]
+    }
   };
 }
 
@@ -39,13 +49,29 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const fallback = POSTS.filter((p) => p.slug !== post.slug && !related.includes(p)).slice(0, 3 - related.length);
   const more = [...related, ...fallback];
 
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.t,
+    image: [`https://kaasha.in/images/${post.img}`],
+    datePublished: new Date(post.date).toISOString().slice(0, 10),
+    author: { "@type": "Person", name: "Vallari Shah", url: "https://kaasha.in/about" },
+    publisher: { "@type": "Organization", name: "Kaasha by Vallari Shah", logo: { "@type": "ImageObject", url: "https://kaasha.in/images/logo.png" } },
+    mainEntityOfPage: `https://kaasha.in/blog/${post.slug}`
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
       <Header />
       <main id="top">
         <section className="page-banner">
           <div className="page-banner-bg">
-            <Image src={`/images/${post.img}`} alt="" fill sizes="100vw" priority />
+            <Image src={`/images/${post.img}`} alt={post.t} fill sizes="100vw" priority />
           </div>
           <div className="wrap">
             <Link href="/#blog" className="post-back">

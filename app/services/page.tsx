@@ -6,10 +6,20 @@ import Footer from "@/components/Footer";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import ServicesGrid from "@/components/ServicesGrid";
 
+const TITLE = "Services — Kaasha by Vallari Shah";
+const DESCRIPTION =
+  "Eleven one-on-one nutrition services with Vallari Shah — sports nutrition, clinical and lifestyle programs — priced individually with no bundled packages.";
+
 export const metadata: Metadata = {
-  title: "Services — Kaasha by Vallari Shah",
-  description:
-    "Eleven one-on-one nutrition services with Vallari Shah — sports nutrition, clinical and lifestyle programs — priced individually with no bundled packages."
+  title: TITLE,
+  description: DESCRIPTION,
+  alternates: { canonical: "https://kaasha.in/services" },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "https://kaasha.in/services",
+    images: [{ url: "/images/food-chef-prep.jpg" }]
+  }
 };
 
 export default function ServicesPage() {
@@ -19,7 +29,7 @@ export default function ServicesPage() {
       <main id="top">
         <section className="page-banner">
           <div className="page-banner-bg">
-            <Image src="/images/food-chef-prep.jpg" alt="" fill sizes="100vw" priority />
+            <Image src="/images/food-chef-prep.jpg" alt="Chef preparing a healthy meal" fill sizes="100vw" priority />
           </div>
           <div className="wrap">
             <Link href="/" className="post-back">

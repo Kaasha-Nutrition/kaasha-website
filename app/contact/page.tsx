@@ -9,10 +9,20 @@ import ContactForm from "@/components/ContactForm";
 import { MailIcon, PhoneIcon, PinIcon, FacebookIcon, InstagramIcon, PinterestIcon } from "@/components/icons";
 import { EMAIL, PHONE_DISPLAY, PHONE_TEL, PRACTICE_ADDRESS, SOCIALS } from "@/lib/contact-info";
 
+const TITLE = "Contact — Kaasha by Vallari Shah";
+const DESCRIPTION =
+  "Get in touch with Vallari Shah — Lifestyle & Sports Nutritionist — by phone, email or the contact form for questions, suggestions or to start your nutrition journey.";
+
 export const metadata: Metadata = {
-  title: "Contact — Kaasha by Vallari Shah",
-  description:
-    "Get in touch with Vallari Shah — Lifestyle & Sports Nutritionist — by phone, email or the contact form for questions, suggestions or to start your nutrition journey."
+  title: TITLE,
+  description: DESCRIPTION,
+  alternates: { canonical: "https://kaasha.in/contact" },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "https://kaasha.in/contact",
+    images: [{ url: "/images/topic-journal.jpg" }]
+  }
 };
 
 const SOCIAL_ICON = { Facebook: FacebookIcon, Instagram: InstagramIcon, Pinterest: PinterestIcon } as const;
@@ -26,7 +36,7 @@ export default function ContactPage() {
       <main id="top">
         <section className="page-banner">
           <div className="page-banner-bg">
-            <Image src="/images/topic-journal.jpg" alt="" fill sizes="100vw" priority />
+            <Image src="/images/topic-journal.jpg" alt="Nutrition journal and meal planning notes" fill sizes="100vw" priority />
           </div>
           <div className="wrap">
             <Link href="/" className="post-back">
