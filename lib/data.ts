@@ -6,6 +6,7 @@ export interface Service {
   icon: keyof typeof ICON_PATHS;
   duration: string;
   price: number | null;
+  monthly?: boolean;
   img: string;
   desc: string;
 }
@@ -34,27 +35,27 @@ export const CAT_LABEL: Record<ServiceCategory, string> = {
 };
 
 export const SERVICES: Service[] = [
-  { name: "Personal Nutrition Counseling", cat: "lifestyle", icon: "counseling", duration: "1 hr", price: 4500, img: "food-greens-flatlay.jpg",
+  { name: "Personal Nutrition Counseling", cat: "lifestyle", icon: "counseling", duration: "1 hr", price: 4500, monthly: true, img: "food-greens-flatlay.jpg",
     desc: "Lifestyle, blood-work and body-fat assessment, a personalised meal plan, weekly tracking and a check-in every 3 weeks." },
-  { name: "Diabetes Management", cat: "clinical", icon: "diabetes", duration: "45 min", price: 4500, img: "topic-diabetes.jpg",
+  { name: "Diabetes Management", cat: "clinical", icon: "diabetes", duration: "45 min", price: 4500, monthly: true, img: "topic-diabetes.jpg",
     desc: "A plan built around duration of diabetes, Type 1 vs 2, health conditions and lifestyle — customised diet, portion size and cooking tips." },
-  { name: "PCOD Management", cat: "clinical", icon: "pcod", duration: "1 hr", price: 4500, img: "food-pumpkin-seeds.jpg",
+  { name: "PCOD Management", cat: "clinical", icon: "pcod", duration: "1 hr", price: 4500, monthly: true, img: "food-pumpkin-seeds.jpg",
     desc: "Customised diet plan, portion size and cooking tips built around PCOD." },
-  { name: "Healthy Weight at an Age", cat: "lifestyle", icon: "weight", duration: "1 hr", price: 4500, img: "food-apple-pb-dip.jpg",
+  { name: "Healthy Weight at an Age", cat: "lifestyle", icon: "weight", duration: "1 hr", price: 4500, monthly: true, img: "food-apple-pb-dip.jpg",
     desc: "Customised diet plan, portion size and cooking tips for healthy weight management at any life stage." },
-  { name: "Pregnancy Diet Management", cat: "clinical", icon: "pregnancy", duration: "40 min", price: 4500, img: "food-smoothie.jpg",
+  { name: "Pregnancy Diet Management", cat: "clinical", icon: "pregnancy", duration: "40 min", price: 4500, monthly: true, img: "food-smoothie.jpg",
     desc: "Customised diet plan, portion size and cooking tips through pregnancy and lactation." },
-  { name: "Sports Nutrition", cat: "sports", icon: "sports", duration: "1 hr", price: 4500, img: "topic-pilates.jpg",
+  { name: "Sports Nutrition", cat: "sports", icon: "sports", duration: "1 hr", price: 4500, monthly: true, img: "topic-pilates.jpg",
     desc: "Training-day diets, competition prep, hydration strategy and fatigue reduction for triathlon, marathon, rowing, rugby, swimming, sailing and basketball." },
   { name: "Bride/Grooms-to-be", cat: "lifestyle", icon: "bride", duration: "1 hr", price: 3000, img: "kaasha-papaya-skewers.jpg",
     desc: "A plan to help you tone down and stay healthy through an exciting but stressful time — with a focus on skin glow and hair health." },
   { name: "Healthy Skin, Hair & Nails", cat: "lifestyle", icon: "skin", duration: "40 min", price: 2500, img: "food-watermelon-feta.jpg",
     desc: "Customised diet plan, portion size and cooking tips for skin, hair and nail health." },
-  { name: "Gut Health", cat: "clinical", icon: "gut", duration: "40 min", price: 4500, img: "food-mushroom-stroganoff.jpg",
+  { name: "Gut Health", cat: "clinical", icon: "gut", duration: "40 min", price: 4500, monthly: true, img: "food-mushroom-stroganoff.jpg",
     desc: "Customised diet plan, portion size and cooking tips focused on gut health." },
-  { name: "Management of Heart Health", cat: "clinical", icon: "heart", duration: "40 min", price: 4500, img: "topic-fire-veg.jpg",
+  { name: "Management of Heart Health", cat: "clinical", icon: "heart", duration: "40 min", price: 4500, monthly: true, img: "topic-fire-veg.jpg",
     desc: "Customised diet plan, portion size and cooking tips for heart health." },
-  { name: "Train to Run, Eat to Perform", cat: "sports", icon: "run", duration: "1 hr", price: 4500, img: "food-cucumber-pb-snack.jpg",
+  { name: "Train to Run, Eat to Perform", cat: "sports", icon: "run", duration: "1 hr", price: 4500, monthly: true, img: "food-cucumber-pb-snack.jpg",
     desc: "A marathon runners' diet — nutrition built around your training block and race day." },
   { name: "Healthy Cooking Classes", cat: "soon", icon: "soon", duration: "", price: null, img: "food-chef-prep.jpg", desc: "Coming soon." },
   { name: "Changing Habits", cat: "soon", icon: "soon", duration: "", price: null, img: "topic-journal.jpg", desc: "Coming soon." },

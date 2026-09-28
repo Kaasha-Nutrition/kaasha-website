@@ -243,7 +243,7 @@ export default function BookingSlotPicker() {
             <option value="">Choose a service…</option>
             {BOOKABLE.map((s) => (
               <option key={s.name} value={s.name}>
-                {s.name} — ₹{s.price!.toLocaleString("en-IN")} / {s.duration}
+                {s.name} — ₹{s.price!.toLocaleString("en-IN")}{s.monthly ? "/month" : ""} / {s.duration}
               </option>
             ))}
           </select>
@@ -361,7 +361,7 @@ export default function BookingSlotPicker() {
           <option value="">Choose a service…</option>
           {BOOKABLE.map((s) => (
             <option key={s.name} value={s.name}>
-              {s.name} — ₹{s.price!.toLocaleString("en-IN")} / {s.duration}
+              {s.name} — ₹{s.price!.toLocaleString("en-IN")}{s.monthly ? "/month" : ""} / {s.duration}
             </option>
           ))}
         </select>

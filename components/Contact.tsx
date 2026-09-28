@@ -31,7 +31,7 @@ export default function Contact() {
               {selected ? (
                 <>
                   <h4>{selected.name}</h4>
-                  <div className="svc-price">₹{selected.price!.toLocaleString("en-IN")}</div>
+                  <div className="svc-price">₹{selected.price!.toLocaleString("en-IN")}{selected.monthly ? "/month" : ""}</div>
                   <ul className="svc-meta">
                     <li>
                       <ClockIcon /> {selected.duration}

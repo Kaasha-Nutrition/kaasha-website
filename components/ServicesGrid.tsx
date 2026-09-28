@@ -80,7 +80,7 @@ export default function ServicesGrid() {
                       </>
                     ) : (
                       <>
-                        <span className="svc-price">₹{s.price!.toLocaleString("en-IN")}</span>
+                        <span className="svc-price">₹{s.price!.toLocaleString("en-IN")}{s.monthly ? "/month" : ""}</span>
                         <button
                           className="btn btn-primary btn-sm"
                           onClick={() => presetService(s.name)}
