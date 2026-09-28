@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { POSTS } from "@/lib/data";
 
-const BASE_URL = "https://kaasha.in";
+const BASE_URL = "https://www.kaasha.in";
 
 function parsePostDate(d: string): Date {
   const parsed = new Date(d);

@@ -3,7 +3,7 @@ import { BookingProvider } from "@/lib/booking-context";
 import { EMAIL, PHONE_TEL, SOCIALS } from "@/lib/contact-info";
 import "./globals.css";
 
-const SITE_URL = "https://kaasha.in";
+const SITE_URL = "https://www.kaasha.in";
 const SITE_NAME = "Kaasha by Vallari Shah";
 const SITE_TITLE = "Kaasha by Vallari Shah — Lifestyle & Sports Nutrition";
 const SITE_DESCRIPTION =

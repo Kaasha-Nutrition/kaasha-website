@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const firstPara = blocks.find((b) => b.type === "p" || b.type === "quote");
   const description = firstPara && "text" in firstPara ? firstPara.text.slice(0, 155) : undefined;
   const title = `${post.t} — Kaasha by Vallari Shah`;
-  const url = `https://kaasha.in/blog/${post.slug}`;
+  const url = `https://www.kaasha.in/blog/${post.slug}`;
   return {
     title,
     description,
@@ -53,11 +53,11 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     "@context": "https://schema.org",
     "@type": "Article",
     headline: post.t,
-    image: [`https://kaasha.in/images/${post.img}`],
+    image: [`https://www.kaasha.in/images/${post.img}`],
     datePublished: new Date(post.date).toISOString().slice(0, 10),
-    author: { "@type": "Person", name: "Vallari Shah", url: "https://kaasha.in/about" },
-    publisher: { "@type": "Organization", name: "Kaasha by Vallari Shah", logo: { "@type": "ImageObject", url: "https://kaasha.in/images/logo.png" } },
-    mainEntityOfPage: `https://kaasha.in/blog/${post.slug}`
+    author: { "@type": "Person", name: "Vallari Shah", url: "https://www.kaasha.in/about" },
+    publisher: { "@type": "Organization", name: "Kaasha by Vallari Shah", logo: { "@type": "ImageObject", url: "https://www.kaasha.in/images/logo.png" } },
+    mainEntityOfPage: `https://www.kaasha.in/blog/${post.slug}`
   };
 
   return (

@@ -16,11 +16,11 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  alternates: { canonical: "https://kaasha.in/about" },
+  alternates: { canonical: "https://www.kaasha.in/about" },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
-    url: "https://kaasha.in/about",
+    url: "https://www.kaasha.in/about",
     images: [{ url: "/images/vallari-about-portrait.jpg" }]
   }
 };

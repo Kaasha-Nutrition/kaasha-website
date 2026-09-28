@@ -14,11 +14,11 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  alternates: { canonical: "https://kaasha.in/sports-nutrition" },
+  alternates: { canonical: "https://www.kaasha.in/sports-nutrition" },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
-    url: "https://kaasha.in/sports-nutrition",
+    url: "https://www.kaasha.in/sports-nutrition",
     images: [{ url: "/images/topic-pilates.jpg" }]
   }
 };
