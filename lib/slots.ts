@@ -1,9 +1,10 @@
 /**
- * Pure timezone-aware slot generation. Given the owner's availability
- * settings, a calendar date, Google's busy intervals for that day, and any
- * times currently held by an in-progress booking, produces the list of
- * bookable appointment slots. No I/O here — this is deliberately a pure
- * function so it's easy to reason about and test.
+ * Pure timezone-aware slot resolution. Given the owner's explicit weekly
+ * slot list, a calendar date, and Google's busy intervals for that day,
+ * produces the list of genuinely bookable appointment slots for that date
+ * — i.e. the subset of the weekly list that falls on this date, respects
+ * the notice/window rules, and isn't already busy on the calendar. No I/O
+ * here — deliberately a pure function so it's easy to reason about and test.
  */
 
 import type { BookingSettings } from "./booking-settings";
@@ -57,64 +58,42 @@ export function calendarDayOfWeek(dateStr: string): number {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
-function addMinutes(hhmm: string, minutes: number): string {
-  const [h, m] = hhmm.split(":").map(Number);
-  const total = h * 60 + m + minutes;
-  const hh = Math.floor(total / 60)
-    .toString()
-    .padStart(2, "0");
-  const mm = (total % 60).toString().padStart(2, "0");
-  return `${hh}:${mm}`;
-}
-
-function timeToMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
-}
-
 function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
   return aStart < bEnd && aEnd > bStart;
 }
 
 /**
- * Generate the bookable slots for one calendar date. `now` is injected for
- * testability and defaults to the real current time.
+ * Resolve the bookable slots for one calendar date from the owner's
+ * explicit weekly list. `now` is injected for testability and defaults to
+ * the real current time.
  */
 export function generateSlotsForDate(
   dateStr: string,
   settings: BookingSettings,
   busy: BusyInterval[],
-  heldTimes: string[] = [],
   now: Date = new Date()
 ): Slot[] {
   const dow = calendarDayOfWeek(dateStr);
-  if (!settings.workingDays.includes(dow)) return [];
+  const todaysSlots = settings.weeklySlots.filter((s) => s.day === dow);
+  if (todaysSlots.length === 0) return [];
 
   const maxWindowEnd = new Date(now.getTime() + settings.maxWindowDays * 24 * 60 * 60 * 1000);
   const minNoticeThreshold = new Date(now.getTime() + settings.minNoticeHours * 60 * 60 * 1000);
-
   const busyDates = busy.map((b) => ({ start: new Date(b.start), end: new Date(b.end) }));
 
-  const step = settings.slotMinutes + settings.bufferMinutes;
-  const endMinutes = timeToMinutes(settings.endTime);
-
   const slots: Slot[] = [];
-  let cursor = settings.startTime;
-
-  while (timeToMinutes(cursor) + settings.slotMinutes <= endMinutes) {
-    const slotStart = zonedTimeToUtc(dateStr, cursor, settings.timezone);
-    const slotEnd = new Date(slotStart.getTime() + settings.slotMinutes * 60 * 1000);
+  for (const ws of todaysSlots) {
+    const slotStart = zonedTimeToUtc(dateStr, ws.time, settings.timezone);
+    const slotEnd = new Date(slotStart.getTime() + settings.appointmentMinutes * 60 * 1000);
 
     const withinWindow = slotStart >= minNoticeThreshold && slotStart <= maxWindowEnd;
-    const isHeld = heldTimes.includes(cursor);
     const isBusy = busyDates.some((b) => overlaps(slotStart, slotEnd, b.start, b.end));
 
-    if (withinWindow && !isHeld && !isBusy) {
-      slots.push({ time: cursor, startISO: slotStart.toISOString(), endISO: slotEnd.toISOString() });
+    if (withinWindow && !isBusy) {
+      slots.push({ time: ws.time, startISO: slotStart.toISOString(), endISO: slotEnd.toISOString() });
     }
-
-    cursor = addMinutes(cursor, step);
   }
 
+  slots.sort((a, b) => a.time.localeCompare(b.time));
   return slots;
 }

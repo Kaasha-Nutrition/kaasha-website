@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isSlotHeld } from "@/lib/booking-store";
 import { getBookingSettings } from "@/lib/booking-settings";
 import { getBusyIntervals, isGoogleConnected, isGoogleOAuthConfigured, isNotConnectedError } from "@/lib/google-calendar";
 import { isKvConfigured } from "@/lib/kv";
+import { isPaymentsConfigured } from "@/lib/payments";
 import { generateSlotsForDate, zonedTimeToUtc } from "@/lib/slots";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +25,7 @@ export async function GET(req: NextRequest) {
   // Graceful degradation: if the backend isn't fully set up yet, tell the
   // frontend to show its "book via WhatsApp/email instead" fallback rather
   // than a broken page or a 500.
-  if (!isKvConfigured() || !isGoogleOAuthConfigured()) {
+  if (!isKvConfigured() || !isGoogleOAuthConfigured() || !isPaymentsConfigured()) {
     return NextResponse.json({ available: false, reason: "not_configured", slots: [] });
   }
   if (!(await isGoogleConnected())) {
@@ -36,7 +38,12 @@ export async function GET(req: NextRequest) {
     const dayStartISO = zonedTimeToUtc(date, "00:00", settings.timezone).toISOString();
     const dayEndISO = zonedTimeToUtc(date, "23:59", settings.timezone).toISOString();
     const busy = await getBusyIntervals(dayStartISO, dayEndISO, settings.timezone);
-    const slots = generateSlotsForDate(date, settings, busy);
+    const candidates = generateSlotsForDate(date, settings, busy);
+
+    // Also hide any slot another customer currently has an active ~15-minute
+    // payment hold on, so two people aren't shown the same disappearing slot.
+    const heldFlags = await Promise.all(candidates.map((s) => isSlotHeld(date, s.time)));
+    const slots = candidates.filter((_, i) => !heldFlags[i]);
 
     return NextResponse.json({
       available: true,

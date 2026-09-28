@@ -190,6 +190,18 @@ export interface CreateEventInput {
   startISO: string;
   endISO: string;
   timezone: string;
+  /**
+   * Optional deterministic custom event ID (lowercase a–v and 0–9 only,
+   * 5–1024 chars — see lib/booking-store.ts's generateBookingId, which
+   * produces IDs in exactly this alphabet). Passing this makes event
+   * creation idempotent: a retried request for the same booking either
+   * creates the event once, or — if it already exists — is treated as a
+   * success rather than an error, so a duplicate webhook/verify call can
+   * never create two calendar events for the same booking.
+   */
+  id?: string;
+  /** Customer's email, added as an attendee so they get a Google Calendar invite automatically. */
+  attendeeEmail?: string;
 }
 
 export interface CreatedEvent {
@@ -197,24 +209,40 @@ export interface CreatedEvent {
   htmlLink: string;
 }
 
-/** Create the confirmed appointment on Vallari's calendar. */
+/** Create the confirmed appointment on Vallari's calendar. Idempotent when `input.id` is supplied. */
 export async function createCalendarEvent(input: CreateEventInput): Promise<CreatedEvent> {
   const accessToken = await getAccessToken();
   const calendarId = env("GOOGLE_CALENDAR_ID") || "primary";
 
-  const res = await fetch(`${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events`, {
+  const body: Record<string, unknown> = {
+    summary: input.summary,
+    description: input.description,
+    start: { dateTime: input.startISO, timeZone: input.timezone },
+    end: { dateTime: input.endISO, timeZone: input.timezone }
+  };
+  if (input.id) body.id = input.id;
+  if (input.attendeeEmail) body.attendees = [{ email: input.attendeeEmail }];
+
+  const sendUpdatesQuery = input.attendeeEmail ? "?sendUpdates=all" : "";
+  const res = await fetch(`${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events${sendUpdatesQuery}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({
-      summary: input.summary,
-      description: input.description,
-      start: { dateTime: input.startISO, timeZone: input.timezone },
-      end: { dateTime: input.endISO, timeZone: input.timezone }
-    })
+    body: JSON.stringify(body)
   });
+
+  if (res.status === 409 && input.id) {
+    // Already created by an earlier attempt (retried webhook/verify call) — fetch and return the existing event rather than erroring.
+    const existing = await fetch(`${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(input.id)}`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (existing.ok) {
+      const data = (await existing.json()) as { id: string; htmlLink: string };
+      return { id: data.id, htmlLink: data.htmlLink };
+    }
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");

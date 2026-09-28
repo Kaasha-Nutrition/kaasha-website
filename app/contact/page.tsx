@@ -69,6 +69,7 @@ export default function ContactPage() {
                   <PinIcon />
                   <div>
                     <span className="label">Practice address</span>
+                    <strong className="clinic-name">Rhythm Medicity</strong>
                     <span>{PRACTICE_ADDRESS}</span>
                   </div>
                 </div>

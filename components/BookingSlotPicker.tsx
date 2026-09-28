@@ -15,20 +15,13 @@ interface AvailabilityResponse {
   message?: string;
 }
 
-interface BookingSuccess {
-  name: string;
-  email: string;
-  mobile: string;
-  packageName: string;
-  date: string;
-  time: string;
+interface StartResponse {
+  success: boolean;
+  bookingId: string;
+  amountPaise: number;
   dateLabel: string;
   timeLabel: string;
-  timezone: string;
-  startISO?: string;
-  endISO?: string;
-  eventLink?: string;
-  emailSent: boolean;
+  checkoutUrl: string;
 }
 
 function todayLocalDateString(): string {
@@ -43,9 +36,33 @@ function formatTimeButtonLabel(hhmm: string): string {
   return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
 }
 
-function toGCalUtc(iso: string): string {
-  return iso.replace(/[-:]/g, "").split(".")[0] + "Z";
+function formatRupees(paise: number): string {
+  return `₹${Math.round(paise / 100).toLocaleString("en-IN")}`;
 }
+
+/** The exact pre-filled WhatsApp inquiry message format the practice uses. */
+function buildInquiryMessage(opts: {
+  packageName: string;
+  name: string;
+  mobile: string;
+  email: string;
+  preferredDate?: string;
+  preferredTime?: string;
+  message: string;
+}): string {
+  return [
+    `Hi Vallari, I would like to enquire about ${opts.packageName || "a service"}.`,
+    ``,
+    `Name: ${opts.name || "—"}`,
+    `Mobile: ${opts.mobile || "—"}`,
+    `Email: ${opts.email || "—"}`,
+    `Preferred Date: ${opts.preferredDate || "—"}`,
+    `Preferred Time: ${opts.preferredTime || "—"}`,
+    `Goal/Message: ${opts.message || "—"}`
+  ].join("\n");
+}
+
+type LiveStep = "form" | "summary" | "starting";
 
 export default function BookingSlotPicker() {
   const { selectedService, setSelectedService } = useBooking();
@@ -55,7 +72,6 @@ export default function BookingSlotPicker() {
 
   const [date, setDate] = useState(todayLocalDateString());
   const [slots, setSlots] = useState<string[]>([]);
-  const [timezone, setTimezone] = useState("Asia/Kolkata");
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -65,11 +81,11 @@ export default function BookingSlotPicker() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
 
-  const [submitState, setSubmitState] = useState<"idle" | "submitting" | "slot_taken" | "error">("idle");
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [result, setResult] = useState<BookingSuccess | null>(null);
+  const [liveStep, setLiveStep] = useState<LiveStep>("form");
+  const [startResult, setStartResult] = useState<StartResponse | null>(null);
+  const [startError, setStartError] = useState<string | null>(null);
+  const [submitState, setSubmitState] = useState<"idle" | "slot_taken" | "error">("idle");
 
-  const selected = BOOKABLE.find((s) => s.name === selectedService) ?? null;
   const minDate = useMemo(() => todayLocalDateString(), []);
 
   // Once, on mount: check whether the live booking backend is configured
@@ -106,7 +122,6 @@ export default function BookingSlotPicker() {
           setSlots([]);
         } else {
           setSlots(data.slots || []);
-          if (data.timezone) setTimezone(data.timezone);
         }
       })
       .catch(() => {
@@ -120,35 +135,26 @@ export default function BookingSlotPicker() {
     };
   }, [date, liveEnabled]);
 
-  function buildManualMessage(): string | null {
+  function handleManualWhatsapp() {
     if (!name.trim() || !mobile.trim() || !selectedService) {
       alert("Please fill in your name, mobile number and select a service.");
-      return null;
+      return;
     }
-    return [
-      "New Package Inquiry",
-      "Customer Name: " + name.trim(),
-      "Phone: " + mobile.trim(),
-      "Email: " + (email.trim() || "—"),
-      "Selected Package: " + selectedService,
-      "Message/Goal: " + (message.trim() || "—")
-    ].join("\n");
-  }
-
-  function handleManualWhatsapp() {
-    const msg = buildManualMessage();
-    if (!msg) return;
+    const msg = buildInquiryMessage({ packageName: selectedService, name, mobile, email, message });
     window.open("https://wa.me/917769090258?text=" + encodeURIComponent(msg), "_blank");
   }
 
   function handleManualEmail() {
-    const msg = buildManualMessage();
-    if (!msg) return;
+    if (!name.trim() || !mobile.trim() || !selectedService) {
+      alert("Please fill in your name, mobile number and select a service.");
+      return;
+    }
+    const msg = buildInquiryMessage({ packageName: selectedService, name, mobile, email, message });
     const subject = "New Package Inquiry — " + selectedService;
     window.location.href = "mailto:vallari@kaasha.in?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(msg);
   }
 
-  async function handleSubmit(e: FormEvent) {
+  function handleReviewBooking(e: FormEvent) {
     e.preventDefault();
     if (!selectedService) {
       alert("Please select a service.");
@@ -162,12 +168,14 @@ export default function BookingSlotPicker() {
       alert("Please fill in your name, mobile number and email.");
       return;
     }
+    setLiveStep("summary");
+  }
 
-    setSubmitState("submitting");
-    setSubmitError(null);
-
+  async function handleProceedToPay() {
+    setLiveStep("starting");
+    setStartError(null);
     try {
-      const res = await fetch("/api/book", {
+      const res = await fetch("/api/booking/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -184,8 +192,8 @@ export default function BookingSlotPicker() {
 
       if (res.status === 409 || json.error === "slot_taken") {
         setSubmitState("slot_taken");
+        setLiveStep("form");
         setSelectedTime(null);
-        // Refresh the slot list so the taken time disappears.
         setSlotsLoading(true);
         const refreshed = await fetch(`/api/availability?date=${date}`, { cache: "no-store" }).then((r) => r.json());
         setSlots(refreshed.slots || []);
@@ -195,67 +203,20 @@ export default function BookingSlotPicker() {
 
       if (!res.ok) {
         setSubmitState("error");
-        setSubmitError(json.message || "Something went wrong. Please try again or reach out via WhatsApp.");
+        setStartError(json.message || "Something went wrong. Please try again or reach out via WhatsApp.");
+        setLiveStep("summary");
         return;
       }
 
-      setResult(json.booking as BookingSuccess);
-      setSubmitState("idle");
+      setStartResult(json as StartResponse);
+      // Full-page redirect to PhonePe's hosted checkout — this is a real
+      // payment page, not something to render inline.
+      window.location.href = (json as StartResponse).checkoutUrl;
     } catch {
       setSubmitState("error");
-      setSubmitError("Something went wrong. Please try again or reach out via WhatsApp.");
+      setStartError("Something went wrong starting payment. Please try again or reach out via WhatsApp.");
+      setLiveStep("summary");
     }
-  }
-
-  // ---------- Success / confirmation screen ----------
-  if (result) {
-    const gcalUrl =
-      result.startISO && result.endISO
-        ? `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
-            "Kaasha — " + result.packageName
-          )}&dates=${toGCalUtc(result.startISO)}/${toGCalUtc(result.endISO)}&details=${encodeURIComponent(
-            "Appointment with Kaasha by Vallari Shah."
-          )}`
-        : null;
-    const waMessage = `Hi Vallari, I have booked a ${result.packageName} appointment for ${result.dateLabel} at ${result.timeLabel}. Name: ${result.name} Email: ${result.email}`;
-
-    return (
-      <div className="booking-panel booking-confirmed">
-        <div className="confirm-icon" aria-hidden="true">
-          ✓
-        </div>
-        <h3>Your appointment is confirmed</h3>
-        <div className="confirm-details">
-          <div>
-            <span className="label">Package</span>
-            <span>{result.packageName}</span>
-          </div>
-          <div>
-            <span className="label">Date</span>
-            <span>{result.dateLabel}</span>
-          </div>
-          <div>
-            <span className="label">Time</span>
-            <span>{result.timeLabel}</span>
-          </div>
-        </div>
-        <p className="admin-hint">
-          A confirmation has been sent to {result.email}
-          {result.emailSent ? "." : " — if it doesn't arrive shortly, please check your spam folder or reach out directly."}
-        </p>
-        <div className="form-actions">
-          {gcalUrl && (
-            <a className="btn btn-ghost" href={gcalUrl} target="_blank" rel="noopener">
-              Add to Google Calendar
-            </a>
-          )}
-          <a className="btn btn-whatsapp" href={`https://wa.me/917769090258?text=${encodeURIComponent(waMessage)}`} target="_blank" rel="noopener">
-            <WhatsappIcon width={17} height={17} />
-            Message us on WhatsApp
-          </a>
-        </div>
-      </div>
-    );
   }
 
   // ---------- Still checking whether live booking is available ----------
@@ -325,9 +286,70 @@ export default function BookingSlotPicker() {
     );
   }
 
-  // ---------- Live slot picker ----------
+  // ---------- Live flow, step 2: booking summary + "Proceed to Pay" ----------
+  if (liveStep === "summary" || liveStep === "starting") {
+    const amount = startResult?.amountPaise ?? 50000;
+    const selectedPkg = BOOKABLE.find((s) => s.name === selectedService) ?? null;
+    const balanceDue = selectedPkg?.price != null ? Math.max(0, selectedPkg.price - Math.round(amount / 100)) : null;
+    return (
+      <div className="booking-panel">
+        <div className="booking-panel-head">
+          <h3>Booking summary</h3>
+          <span className="tz-badge">India Standard Time (IST)</span>
+        </div>
+        <div className="confirm-details">
+          <div>
+            <span className="label">Service</span>
+            <span>{selectedService}</span>
+          </div>
+          <div>
+            <span className="label">Date</span>
+            <span>{date}</span>
+          </div>
+          <div>
+            <span className="label">Time</span>
+            <span>{selectedTime ? formatTimeButtonLabel(selectedTime) : "—"}</span>
+          </div>
+          <div>
+            <span className="label">Name</span>
+            <span>{name}</span>
+          </div>
+          <div>
+            <span className="label">Mobile</span>
+            <span>{mobile}</span>
+          </div>
+          <div>
+            <span className="label">Email</span>
+            <span>{email}</span>
+          </div>
+        </div>
+        <p className="note-box">
+          A booking fee of <strong>{formatRupees(amount)}</strong> is due now to confirm this slot — this holds it for 15 minutes while
+          you complete payment, and your appointment is only confirmed once payment is verified.
+          {balanceDue !== null && balanceDue > 0 && (
+            <>
+              {" "}
+              The remaining <strong>{formatRupees(balanceDue * 100)}</strong> of the {selectedPkg?.name}&apos;s {formatRupees((selectedPkg?.price || 0) * 100)}{" "}
+              fee is payable directly to Vallari after your consultation — not through this website.
+            </>
+          )}
+        </p>
+        {startError && <p className="admin-error">{startError}</p>}
+        <div className="form-actions">
+          <button type="button" className="btn btn-primary" disabled={liveStep === "starting"} onClick={handleProceedToPay}>
+            {liveStep === "starting" ? "Starting payment…" : `Proceed to Pay ${formatRupees(amount)}`}
+          </button>
+          <button type="button" className="btn btn-ghost" disabled={liveStep === "starting"} onClick={() => setLiveStep("form")}>
+            Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- Live flow, step 1: service, date &amp; time + details ----------
   return (
-    <form className="booking-panel" onSubmit={handleSubmit} noValidate>
+    <form className="booking-panel" onSubmit={handleReviewBooking} noValidate>
       <div className="booking-panel-head">
         <h3>Select a service, date &amp; time</h3>
         <span className="tz-badge">India Standard Time (IST)</span>
@@ -401,11 +423,11 @@ export default function BookingSlotPicker() {
       </div>
       <p className="required-note">* required fields</p>
 
-      {submitState === "error" && <p className="admin-error">{submitError}</p>}
+      {submitState === "error" && <p className="admin-error">{startError}</p>}
 
       <div className="form-actions">
-        <button type="submit" className="btn btn-primary" disabled={submitState === "submitting"}>
-          {submitState === "submitting" ? "Booking…" : "Confirm Booking"}
+        <button type="submit" className="btn btn-primary">
+          Review &amp; Pay
         </button>
       </div>
       <p className="admin-hint">Prefer to message directly instead? WhatsApp us at +91 77690 90258 or email vallari@kaasha.in.</p>

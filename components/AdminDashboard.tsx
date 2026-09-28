@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import type { BookingSettings } from "@/lib/booking-settings";
+import type { BookingSettings, WeeklySlot } from "@/lib/booking-settings";
 
 interface SettingsResponse {
   settings: BookingSettings;
   kvConfigured: boolean;
   googleOAuthConfigured: boolean;
+  paymentsConfigured: boolean;
   googleConnected: boolean;
+  minimumBookingFeeLabel: string;
 }
 
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export default function AdminDashboard() {
   const [checking, setChecking] = useState(true);
@@ -87,11 +89,20 @@ export default function AdminDashboard() {
     setForm(null);
   }
 
-  function toggleDay(day: number) {
+  function addWeeklySlot() {
     if (!form) return;
-    const has = form.workingDays.includes(day);
-    const workingDays = has ? form.workingDays.filter((d) => d !== day) : [...form.workingDays, day].sort();
-    setForm({ ...form, workingDays });
+    setForm({ ...form, weeklySlots: [...form.weeklySlots, { day: 2, time: "17:00" }] });
+  }
+
+  function updateWeeklySlot(index: number, patch: Partial<WeeklySlot>) {
+    if (!form) return;
+    const weeklySlots = form.weeklySlots.map((s, i) => (i === index ? { ...s, ...patch } : s));
+    setForm({ ...form, weeklySlots });
+  }
+
+  function removeWeeklySlot(index: number) {
+    if (!form) return;
+    setForm({ ...form, weeklySlots: form.weeklySlots.filter((_, i) => i !== index) });
   }
 
   async function handleSave(e: FormEvent) {
@@ -192,6 +203,12 @@ export default function AdminDashboard() {
             dashboard first.
           </p>
         )}
+        {!data.paymentsConfigured && (
+          <p className="admin-warning">
+            PhonePe payments aren&apos;t configured yet — add PHONEPE_CLIENT_ID and PHONEPE_CLIENT_SECRET in the Vercel dashboard before
+            going live. Until then, the booking form falls back to WhatsApp/email inquiries automatically.
+          </p>
+        )}
         {data.googleOAuthConfigured && data.kvConfigured && (
           <div className="admin-google-status">
             {data.googleConnected ? (
@@ -221,58 +238,53 @@ export default function AdminDashboard() {
         <h2>Availability settings</h2>
         <form onSubmit={handleSave} className="admin-settings-form">
           <div className="field">
-            <label>Working days</label>
-            <div className="admin-days-row">
-              {DAY_LABELS.map((label, i) => (
-                <button
-                  key={label}
-                  type="button"
-                  className={`admin-day-chip${form.workingDays.includes(i) ? " active" : ""}`}
-                  onClick={() => toggleDay(i)}
-                >
-                  {label}
+            <label>Weekly appointment slots</label>
+            <p className="admin-hint" style={{ marginTop: 0 }}>
+              The exact times you offer each week — not a full working-day grid. A listed slot only shows as bookable when it&apos;s also
+              free on your Google Calendar that particular week.
+            </p>
+            {form.weeklySlots.length === 0 && <p className="svc-empty">No weekly slots yet — add at least one below.</p>}
+            {form.weeklySlots.map((slot, i) => (
+              <div className="field-row" key={i} style={{ alignItems: "flex-end" }}>
+                <div className="field">
+                  <label htmlFor={`slot-day-${i}`}>Day</label>
+                  <select id={`slot-day-${i}`} value={slot.day} onChange={(e) => updateWeeklySlot(i, { day: Number(e.target.value) })}>
+                    {DAY_LABELS.map((label, d) => (
+                      <option key={label} value={d}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor={`slot-time-${i}`}>Time</label>
+                  <input
+                    id={`slot-time-${i}`}
+                    type="time"
+                    value={slot.time}
+                    onChange={(e) => updateWeeklySlot(i, { time: e.target.value })}
+                  />
+                </div>
+                <button type="button" className="btn btn-ghost" onClick={() => removeWeeklySlot(i)}>
+                  Remove
                 </button>
-              ))}
-            </div>
+              </div>
+            ))}
+            <button type="button" className="btn btn-ghost" onClick={addWeeklySlot}>
+              + Add a weekly slot
+            </button>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="startTime">Day starts at</label>
+              <label htmlFor="appointmentMinutes">Appointment length (minutes)</label>
               <input
-                id="startTime"
-                type="time"
-                value={form.startTime}
-                onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="endTime">Day ends at</label>
-              <input id="endTime" type="time" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} />
-            </div>
-          </div>
-
-          <div className="field-row">
-            <div className="field">
-              <label htmlFor="slotMinutes">Appointment length (minutes)</label>
-              <input
-                id="slotMinutes"
+                id="appointmentMinutes"
                 type="number"
                 min={5}
                 step={5}
-                value={form.slotMinutes}
-                onChange={(e) => setForm({ ...form, slotMinutes: Number(e.target.value) })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="bufferMinutes">Buffer between appointments (minutes)</label>
-              <input
-                id="bufferMinutes"
-                type="number"
-                min={0}
-                step={5}
-                value={form.bufferMinutes}
-                onChange={(e) => setForm({ ...form, bufferMinutes: Number(e.target.value) })}
+                value={form.appointmentMinutes}
+                onChange={(e) => setForm({ ...form, appointmentMinutes: Number(e.target.value) })}
               />
             </div>
           </div>
@@ -307,6 +319,18 @@ export default function AdminDashboard() {
             {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved ✓" : "Save settings"}
           </button>
         </form>
+      </section>
+
+      <section className="admin-card">
+        <h2>Booking payment</h2>
+        <p>
+          Every booking requires a minimum payment of <strong>{data.minimumBookingFeeLabel}</strong> via PhonePe to confirm the slot.
+        </p>
+        <p className="admin-hint">
+          This amount is set in code (<code>lib/booking-fees.ts</code>), not here — it&apos;s a deliberate safeguard so it can never be
+          changed accidentally from this dashboard. Ask your developer to update it if it needs to change. Refunds for payments that
+          couldn&apos;t be matched to a confirmed slot are issued manually from the PhonePe dashboard.
+        </p>
       </section>
     </div>
   );

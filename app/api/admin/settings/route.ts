@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthorizedAdminRequest } from "@/lib/admin-auth";
+import { DEFAULT_MINIMUM_BOOKING_FEE_PAISE, formatPaiseAsRupees } from "@/lib/booking-fees";
 import { DEFAULT_BOOKING_SETTINGS, getBookingSettings, saveBookingSettings, type BookingSettings } from "@/lib/booking-settings";
 import { isGoogleConnected, isGoogleOAuthConfigured } from "@/lib/google-calendar";
 import { isKvConfigured } from "@/lib/kv";
+import { isPaymentsConfigured } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +18,9 @@ export async function GET(req: NextRequest) {
     settings,
     kvConfigured: isKvConfigured(),
     googleOAuthConfigured: isGoogleOAuthConfigured(),
-    googleConnected: await isGoogleConnected()
+    paymentsConfigured: isPaymentsConfigured(),
+    googleConnected: await isGoogleConnected(),
+    minimumBookingFeeLabel: formatPaiseAsRupees(DEFAULT_MINIMUM_BOOKING_FEE_PAISE)
   });
 }
 
@@ -25,16 +29,16 @@ function isValidSettings(body: unknown): body is BookingSettings {
   const s = body as Record<string, unknown>;
   return (
     typeof s.timezone === "string" &&
-    Array.isArray(s.workingDays) &&
-    s.workingDays.every((d) => typeof d === "number" && d >= 0 && d <= 6) &&
-    typeof s.startTime === "string" &&
-    /^\d{2}:\d{2}$/.test(s.startTime) &&
-    typeof s.endTime === "string" &&
-    /^\d{2}:\d{2}$/.test(s.endTime) &&
-    typeof s.slotMinutes === "number" &&
-    s.slotMinutes > 0 &&
-    typeof s.bufferMinutes === "number" &&
-    s.bufferMinutes >= 0 &&
+    Array.isArray(s.weeklySlots) &&
+    (s.weeklySlots as unknown[]).every((w) => {
+      if (!w || typeof w !== "object") return false;
+      const slot = w as Record<string, unknown>;
+      const day = slot.day;
+      const time = slot.time;
+      return typeof day === "number" && day >= 0 && day <= 6 && typeof time === "string" && /^\d{2}:\d{2}$/.test(time);
+    }) &&
+    typeof s.appointmentMinutes === "number" &&
+    s.appointmentMinutes > 0 &&
     typeof s.minNoticeHours === "number" &&
     s.minNoticeHours >= 0 &&
     typeof s.maxWindowDays === "number" &&
