@@ -8,7 +8,7 @@ import ServicesGrid from "@/components/ServicesGrid";
 
 const TITLE = "Services — Kaasha by Vallari Shah";
 const DESCRIPTION =
-  "Eleven one-on-one nutrition services with Vallari Shah — sports nutrition, clinical and lifestyle programs — priced individually with no bundled packages.";
+  "Eleven one-on-one nutrition services with Vallari Shah in Vadodara — sports nutrition, clinical and lifestyle programs — priced individually with no bundled packages.";
 
 export const metadata: Metadata = {
   title: TITLE,

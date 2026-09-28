@@ -11,7 +11,7 @@ import { EMAIL, PHONE_DISPLAY, PHONE_TEL, PRACTICE_ADDRESS, SOCIALS } from "@/li
 
 const TITLE = "Contact — Kaasha by Vallari Shah";
 const DESCRIPTION =
-  "Get in touch with Vallari Shah — Lifestyle & Sports Nutritionist — by phone, email or the contact form for questions, suggestions or to start your nutrition journey.";
+  "Get in touch with Vallari Shah — Lifestyle & Sports Nutritionist in Vadodara — by phone, email or the contact form for questions, suggestions or to start your nutrition journey.";
 
 export const metadata: Metadata = {
   title: TITLE,

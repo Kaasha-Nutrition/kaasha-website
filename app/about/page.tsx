@@ -11,7 +11,7 @@ import { CREDENTIALS, SPECIALTIES, STORY } from "@/lib/about-content";
 
 const TITLE = "About Vallari Shah — Kaasha by Vallari Shah";
 const DESCRIPTION =
-  "Meet Vallari Shah, Lifestyle & Sports Nutritionist and founder of Kaasha — her story, her philosophy on food, and the credentials behind her practice.";
+  "Meet Vallari Shah, Lifestyle & Sports Nutritionist and dietitian in Vadodara — her story, her philosophy on food, and the credentials behind her practice.";
 
 export const metadata: Metadata = {
   title: TITLE,

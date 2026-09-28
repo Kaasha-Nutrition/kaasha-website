@@ -13,6 +13,9 @@ import Footer from "@/components/Footer";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 
 export const metadata: Metadata = {
+  title: "Kaasha by Vallari Shah — Lifestyle & Sports Nutritionist in Vadodara",
+  description:
+    "Personalised lifestyle and sports nutrition with Vallari Shah — a Vadodara-based nutritionist and dietitian offering diabetes, PCOD, weight management, pregnancy and sports nutrition consultations.",
   alternates: { canonical: "https://kaasha.in/" }
 };
 
