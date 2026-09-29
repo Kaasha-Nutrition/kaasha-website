@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { BookingProvider } from "@/lib/booking-context";
 import { EMAIL, PHONE_TEL, SOCIALS } from "@/lib/contact-info";
 import "./globals.css";
 
 const SITE_URL = "https://www.kaasha.in";
+const GA_MEASUREMENT_ID = "G-RNECVQ33D0";
 const SITE_NAME = "Kaasha by Vallari Shah";
 const SITE_TITLE = "Kaasha by Vallari Shah — Lifestyle & Sports Nutrition";
 const SITE_DESCRIPTION =
@@ -94,6 +96,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <BookingProvider>{children}</BookingProvider>
+        <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
       </body>
     </html>
   );
