@@ -479,3 +479,24 @@ footer.site a:hover svg{color:var(--blue-600);}
 .post-related .blog-grid{grid-template-columns:repeat(3,1fr);}
 @media (max-width:900px){ .post-related .blog-grid{grid-template-columns:1fr 1fr;} }
 @media (max-width:560px){ .post-related .blog-grid{grid-template-columns:1fr;} }
+
+/* ---------- GPay / UPI booking payment (components/BookingSlotPicker.tsx) ---------- */
+.gpay-card{display:flex;gap:20px;align-items:center;flex-wrap:wrap;background:var(--paper);border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:18px 20px;margin:18px 0;}
+.gpay-qr-img{border-radius:12px;border:1px solid var(--line-soft);width:160px;height:auto;flex-shrink:0;}
+.gpay-card-details{display:flex;flex-direction:column;gap:6px;min-width:0;}
+.gpay-account-name{font-weight:700;font-size:15px;color:var(--ink);}
+.upi-id-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.upi-id-row code{font-family:var(--sans);font-size:14px;background:var(--paper-raised);border:1px solid var(--line-soft);border-radius:8px;padding:6px 10px;}
+.btn-sm{padding:8px 12px;font-size:12.5px;}
+.paid-checkbox-row{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink);margin:16px 0;cursor:pointer;}
+.paid-checkbox-row input{width:18px;height:18px;flex-shrink:0;}
+.screenshot-field input[type="file"]{font-size:13.5px;}
+
+/* ---------- Admin: pending GPay booking review (components/AdminDashboard.tsx) ---------- */
+.admin-pending-list{display:flex;flex-direction:column;gap:14px;}
+.admin-pending-item{border:1px solid var(--line-soft);border-radius:var(--radius-sm);padding:16px 18px;background:var(--paper);}
+.admin-pending-item h4{font-size:15px;margin:0 0 8px;}
+.admin-pending-meta{display:flex;flex-direction:column;gap:3px;font-size:13.5px;color:var(--ink-soft);margin-bottom:10px;}
+.admin-pending-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+.admin-badge{display:inline-block;font-size:11.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:4px 9px;border-radius:100px;background:var(--green-100);color:var(--green-700);}
+.admin-badge-warn{background:rgba(149,104,31,.12);color:#95681F;}

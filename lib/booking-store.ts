@@ -1,22 +1,23 @@
 /**
- * KV-backed record of every in-flight and completed paid booking. A single
- * generated `bookingId` threads the entire flow — it doubles as PhonePe's
- * `merchantOrderId` and (in lowercase-hex form, which is what makes this
- * safe) as Google Calendar's custom event ID — which is what makes retries
- * from either PhonePe's webhook or the customer's browser idempotent: no
- * matter how many times "finalize this booking" is triggered, it can only
- * ever actually create one calendar event and send one set of emails.
+ * KV-backed record of every booking requested through the website. A
+ * single generated `bookingId` threads the entire flow — it doubles as
+ * Google Calendar's custom event ID once Vallari confirms (see
+ * lib/booking-finalize.ts), which is what makes confirming idempotent: no
+ * matter how many times "confirm this booking" is triggered, it can only
+ * ever actually create one calendar event.
+ *
+ * There's no payment gateway here — customers pay Vallari's static GPay
+ * QR/UPI ID directly on their own phone and self-report the payment
+ * (optionally with a screenshot, emailed to Vallari but never stored
+ * here). A booking starts as "pending_verification" and only becomes
+ * "confirmed" once Vallari reviews it from /admin and confirms she
+ * actually received the ₹500.
  */
 
 import crypto from "node:crypto";
-import { kvGetJSON, kvSetJSON, kvSetNX } from "./kv";
+import { kvDel, kvGet, kvGetJSON, kvSetJSON, kvSetNX } from "./kv";
 
-export type BookingStatus =
-  | "pending_payment"
-  | "confirmed"
-  | "payment_failed"
-  | "payment_captured_slot_lost"
-  | "expired";
+export type BookingStatus = "pending_verification" | "confirmed" | "slot_unavailable" | "declined";
 
 export interface BookingRecord {
   bookingId: string;
@@ -32,15 +33,17 @@ export interface BookingRecord {
   timezone: string;
   message: string;
   amountPaise: number;
+  /** Whether the customer attached a payment screenshot when submitting (the image itself is only emailed to Vallari, never stored). */
+  screenshotProvided: boolean;
   createdAt: string;
   updatedAt: string;
   eventLink?: string;
   eventId?: string;
   emailSent?: boolean;
+  declineReason?: string;
 }
 
-// Lowercase hex only — valid for both PhonePe's merchantOrderId (alphanumeric
-// + "_"/"-", max 63 chars) and Google Calendar's custom event ID (only
+// Lowercase hex only — valid as Google Calendar's custom event ID (only
 // a-v and 0-9, 5–1024 chars: hex digits 0-9a-f are a strict subset of a-v).
 export function generateBookingId(): string {
   return `kb${crypto.randomBytes(12).toString("hex")}`;
@@ -48,15 +51,16 @@ export function generateBookingId(): string {
 
 const BOOKING_TTL_SECONDS = 60 * 60 * 24 * 30; // keep records 30 days — ample for support follow-up
 const bookingKey = (id: string) => `kaasha:booking:${id}`;
-const finalizeClaimKey = (id: string) => `kaasha:booking-finalize-claim:${id}`;
 const slotHoldKey = (date: string, time: string) => `kaasha:hold:${date}:${time}`;
+const PENDING_INDEX_KEY = "kaasha:pending-booking-ids";
 
 export async function createPendingBooking(
   input: Omit<BookingRecord, "status" | "createdAt" | "updatedAt">
 ): Promise<BookingRecord> {
   const now = new Date().toISOString();
-  const record: BookingRecord = { ...input, status: "pending_payment", createdAt: now, updatedAt: now };
+  const record: BookingRecord = { ...input, status: "pending_verification", createdAt: now, updatedAt: now };
   await kvSetJSON(bookingKey(record.bookingId), record, BOOKING_TTL_SECONDS);
+  await addToPendingIndex(record.bookingId);
   return record;
 }
 
@@ -73,32 +77,51 @@ export async function updateBooking(bookingId: string, patch: Partial<BookingRec
 }
 
 /**
- * Exclusive short-lived hold on one exact date+time so two customers can't
- * both proceed to payment for the same slot. Acquired at "create payment
- * order" time (not final submit) with a ~15-minute TTL — long enough to
- * realistically complete a PhonePe Checkout.
+ * Exclusive hold on one exact date+time so two customers can't both submit
+ * a request for the same slot while Vallari is checking and confirming the
+ * first one. There's no payment gateway to key this off, so the TTL below
+ * is a courtesy window, not an airtight guarantee — see HOLD_TTL_SECONDS in
+ * app/api/booking/submit/route.ts for the actual value and the trade-off.
+ * The final freebusy re-check at confirm time (lib/booking-finalize.ts)
+ * always catches a genuine double-booking either way.
  */
 export async function acquireSlotHold(date: string, time: string, bookingId: string, ttlSeconds: number): Promise<boolean> {
   return kvSetNX(slotHoldKey(date, time), bookingId, ttlSeconds);
 }
 
 export async function releaseSlotHold(date: string, time: string): Promise<void> {
-  const { kvDel } = await import("./kv");
   await kvDel(slotHoldKey(date, time));
 }
 
 export async function isSlotHeld(date: string, time: string): Promise<boolean> {
-  const { kvGet } = await import("./kv");
   return Boolean(await kvGet(slotHoldKey(date, time)));
 }
 
-/**
- * Atomic claim so that only ONE of (a) the customer's browser returning
- * from checkout or (b) PhonePe's webhook — whichever gets here first —
- * actually proceeds to re-check the calendar and create the event. The
- * other caller sees `false` and reports "already being finalized" rather
- * than racing to create a duplicate event or send duplicate emails.
- */
-export async function claimBookingFinalization(bookingId: string): Promise<boolean> {
-  return kvSetNX(finalizeClaimKey(bookingId), "1", 600);
+/** Simple JSON-array index of booking IDs currently awaiting Vallari's review, so /admin can list them without needing a KV SCAN. */
+async function addToPendingIndex(bookingId: string): Promise<void> {
+  const ids = (await kvGetJSON<string[]>(PENDING_INDEX_KEY)) || [];
+  if (!ids.includes(bookingId)) {
+    ids.push(bookingId);
+    await kvSetJSON(PENDING_INDEX_KEY, ids);
+  }
+}
+
+export async function removeFromPendingIndex(bookingId: string): Promise<void> {
+  const ids = (await kvGetJSON<string[]>(PENDING_INDEX_KEY)) || [];
+  const next = ids.filter((id) => id !== bookingId);
+  if (next.length !== ids.length) {
+    await kvSetJSON(PENDING_INDEX_KEY, next);
+  }
+}
+
+/** All bookings still awaiting Vallari's confirm/decline. Self-healing against a stale index entry (e.g. a record that expired/was GC'd elsewhere). */
+export async function getPendingBookings(): Promise<BookingRecord[]> {
+  const ids = (await kvGetJSON<string[]>(PENDING_INDEX_KEY)) || [];
+  const records = await Promise.all(ids.map((id) => getBooking(id)));
+  const live = records.filter((r): r is BookingRecord => Boolean(r) && r!.status === "pending_verification");
+  const liveIds = new Set(live.map((r) => r.bookingId));
+  if (liveIds.size !== ids.length) {
+    await kvSetJSON(PENDING_INDEX_KEY, Array.from(liveIds));
+  }
+  return live;
 }

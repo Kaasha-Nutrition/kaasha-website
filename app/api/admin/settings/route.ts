@@ -4,7 +4,6 @@ import { DEFAULT_MINIMUM_BOOKING_FEE_PAISE, formatPaiseAsRupees } from "@/lib/bo
 import { DEFAULT_BOOKING_SETTINGS, getBookingSettings, saveBookingSettings, type BookingSettings } from "@/lib/booking-settings";
 import { isGoogleConnected, isGoogleOAuthConfigured } from "@/lib/google-calendar";
 import { isKvConfigured } from "@/lib/kv";
-import { isPaymentsConfigured } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +17,6 @@ export async function GET(req: NextRequest) {
     settings,
     kvConfigured: isKvConfigured(),
     googleOAuthConfigured: isGoogleOAuthConfigured(),
-    paymentsConfigured: isPaymentsConfigured(),
     googleConnected: await isGoogleConnected(),
     minimumBookingFeeLabel: formatPaiseAsRupees(DEFAULT_MINIMUM_BOOKING_FEE_PAISE)
   });

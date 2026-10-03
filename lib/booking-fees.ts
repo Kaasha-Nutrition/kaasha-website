@@ -1,18 +1,19 @@
 /**
  * Central, non-hardcoded configuration for the booking fee customers pay
- * to reserve an appointment. This is deliberately separate from
+ * to request an appointment. This is deliberately separate from
  * `lib/data.ts`'s `SERVICES` array (which holds each package's *full*
  * consultation price) — the booking fee is a much smaller amount paid up
- * front to secure the slot, not the price of the service itself.
+ * front via GPay/UPI to request the slot, not the price of the service
+ * itself.
  *
  * Confirmed with the owner: ₹500 is a MINIMUM required amount to book —
- * every package charges at least this much to reserve a slot. The current
- * booking flow charges exactly this minimum (the simplest, safest default);
- * raising it — globally or for one specific package — is a one-line edit
- * here, no code elsewhere needs to change.
+ * every package charges at least this much. The current booking flow
+ * charges exactly this minimum (the simplest, safest default); raising it
+ * — globally or for one specific package — is a one-line edit here, no
+ * code elsewhere needs to change.
  */
 
-/** ₹500, in paise (the smallest unit PhonePe's API expects). */
+/** ₹500, in paise — the smallest currency unit, used throughout this codebase's booking-amount math. */
 export const DEFAULT_MINIMUM_BOOKING_FEE_PAISE = 50000;
 
 /**

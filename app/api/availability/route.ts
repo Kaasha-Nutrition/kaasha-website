@@ -3,7 +3,6 @@ import { isSlotHeld } from "@/lib/booking-store";
 import { getBookingSettings } from "@/lib/booking-settings";
 import { getBusyIntervals, isGoogleConnected, isGoogleOAuthConfigured, isNotConnectedError } from "@/lib/google-calendar";
 import { isKvConfigured } from "@/lib/kv";
-import { isPaymentsConfigured } from "@/lib/payments";
 import { generateSlotsForDate, zonedTimeToUtc } from "@/lib/slots";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +24,7 @@ export async function GET(req: NextRequest) {
   // Graceful degradation: if the backend isn't fully set up yet, tell the
   // frontend to show its "book via WhatsApp/email instead" fallback rather
   // than a broken page or a 500.
-  if (!isKvConfigured() || !isGoogleOAuthConfigured() || !isPaymentsConfigured()) {
+  if (!isKvConfigured() || !isGoogleOAuthConfigured()) {
     return NextResponse.json({ available: false, reason: "not_configured", slots: [] });
   }
   if (!(await isGoogleConnected())) {

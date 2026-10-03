@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMinimumBookingFeePaise } from "@/lib/booking-fees";
+import { formatPaiseAsRupees, getMinimumBookingFeePaise } from "@/lib/booking-fees";
 import { formatDateLabel, formatTimeLabel } from "@/lib/booking-format";
 import { getBookingSettings } from "@/lib/booking-settings";
 import { acquireSlotHold, createPendingBooking, generateBookingId, isSlotHeld } from "@/lib/booking-store";
-import { isEmailConfigured } from "@/lib/email";
+import { isEmailConfigured, sendCustomerRequestReceivedEmail, sendOwnerPendingVerificationEmail } from "@/lib/email";
 import { getBusyIntervals, isGoogleConnected, isGoogleOAuthConfigured, isNotConnectedError } from "@/lib/google-calendar";
 import { isKvConfigured } from "@/lib/kv";
-import { createPaymentOrder, isPaymentsConfigured } from "@/lib/payments";
 import { generateSlotsForDate, zonedTimeToUtc } from "@/lib/slots";
 
 export const dynamic = "force-dynamic";
@@ -14,9 +13,16 @@ export const dynamic = "force-dynamic";
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^\d{2}:\d{2}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const HOLD_TTL_SECONDS = 900; // 15 minutes — a realistic PhonePe Checkout completion window
+// How long a submitted-but-not-yet-verified booking holds its exact slot
+// against other customers. There's no payment gateway here, so this is a
+// courtesy window for Vallari to check her GPay and confirm from /admin —
+// not an airtight guarantee. If she takes longer than this, the slot can
+// become bookable by someone else again; the final freebusy re-check at
+// confirm time (lib/booking-finalize.ts) always catches a genuine conflict.
+const HOLD_TTL_SECONDS = 60 * 60 * 3; // 3 hours
+const MAX_SCREENSHOT_BASE64_CHARS = 6_000_000; // ~4.5MB raw, comfortably under typical serverless body limits
 
-interface StartRequestBody {
+interface SubmitRequestBody {
   name?: string;
   mobile?: string;
   email?: string;
@@ -24,6 +30,9 @@ interface StartRequestBody {
   date?: string;
   time?: string;
   message?: string;
+  screenshotBase64?: string;
+  screenshotFilename?: string;
+  screenshotMimeType?: string;
 }
 
 function validationError(field: string, message: string) {
@@ -33,22 +42,23 @@ function validationError(field: string, message: string) {
 const SLOT_TAKEN_MESSAGE = "Sorry, this time slot is no longer available. Please choose another available time.";
 
 /**
- * PUBLIC endpoint — step 1 of the paid booking flow. Validates the request,
- * takes a short exclusive hold on the exact slot, creates a pending
- * booking record, and creates a PhonePe payment order for the required
- * booking fee. Returns the URL the browser should be redirected to for
- * checkout. No calendar event is created here — that only happens after
- * payment is verified (see /api/booking/verify and /api/webhooks/payments).
+ * PUBLIC endpoint — the entire live booking flow happens in this one step
+ * (no payment gateway redirect/return). Validates the request, holds the
+ * slot for a few hours, records the booking as "pending_verification", and
+ * emails Vallari (with the customer's self-reported GPay payment and
+ * optional screenshot) so she can confirm it from /admin once she's
+ * checked her own GPay activity. No calendar event is created yet — that
+ * only happens once she confirms (see /api/admin/bookings/confirm).
  */
 export async function POST(req: NextRequest) {
-  if (!isKvConfigured() || !isGoogleOAuthConfigured() || !isPaymentsConfigured()) {
+  if (!isKvConfigured() || !isGoogleOAuthConfigured()) {
     return NextResponse.json(
       { error: "booking_unavailable", message: "Online booking isn't set up yet — please reach out via WhatsApp or email instead." },
       { status: 503 }
     );
   }
 
-  let body: StartRequestBody;
+  let body: SubmitRequestBody;
   try {
     body = await req.json();
   } catch {
@@ -62,6 +72,9 @@ export async function POST(req: NextRequest) {
   const date = (body.date || "").trim();
   const time = (body.time || "").trim();
   const message = (body.message || "").trim();
+  const screenshotBase64 = (body.screenshotBase64 || "").trim();
+  const screenshotFilename = (body.screenshotFilename || "payment-screenshot.jpg").trim();
+  const screenshotMimeType = (body.screenshotMimeType || "image/jpeg").trim();
 
   if (!name) return validationError("name", "Please enter your full name.");
   if (!mobile) return validationError("mobile", "Please enter your mobile number.");
@@ -69,6 +82,9 @@ export async function POST(req: NextRequest) {
   if (!packageName) return validationError("packageName", "Please select a package.");
   if (!date || !DATE_RE.test(date)) return validationError("date", "Please select a valid date.");
   if (!time || !TIME_RE.test(time)) return validationError("time", "Please select a valid time.");
+  if (screenshotBase64 && screenshotBase64.length > MAX_SCREENSHOT_BASE64_CHARS) {
+    return validationError("screenshot", "That screenshot is too large — please attach one under ~4MB.");
+  }
 
   if (!(await isGoogleConnected())) {
     return NextResponse.json(
@@ -113,6 +129,8 @@ export async function POST(req: NextRequest) {
   }
 
   const amountPaise = getMinimumBookingFeePaise(packageName);
+  const dateLabel = formatDateLabel(date, settings.timezone);
+  const timeLabel = formatTimeLabel(time, settings.timezone);
 
   try {
     await createPendingBooking({
@@ -127,32 +145,60 @@ export async function POST(req: NextRequest) {
       endISO: chosen.endISO,
       timezone: settings.timezone,
       message,
-      amountPaise
-    });
-
-    const origin = new URL(req.url).origin;
-    const redirectUrl = `${origin}/booking/return?bookingId=${encodeURIComponent(bookingId)}`;
-
-    const order = await createPaymentOrder({
-      merchantOrderId: bookingId,
       amountPaise,
-      redirectUrl,
-      expireAfterSeconds: HOLD_TTL_SECONDS
+      screenshotProvided: Boolean(screenshotBase64)
     });
+
+    let ownerEmailSent = false;
+    let customerEmailSent = false;
+    if (isEmailConfigured()) {
+      try {
+        await sendOwnerPendingVerificationEmail({
+          bookingId,
+          customerName: name,
+          customerEmail: email,
+          customerMobile: mobile,
+          packageName,
+          dateLabel,
+          timeLabel,
+          message,
+          amountLabel: formatPaiseAsRupees(amountPaise),
+          screenshot: screenshotBase64 ? { base64: screenshotBase64, filename: screenshotFilename, mimeType: screenshotMimeType } : undefined
+        });
+        ownerEmailSent = true;
+      } catch {
+        ownerEmailSent = false;
+      }
+      try {
+        await sendCustomerRequestReceivedEmail({
+          customerName: name,
+          customerEmail: email,
+          customerMobile: mobile,
+          packageName,
+          dateLabel,
+          timeLabel,
+          message,
+          amountLabel: formatPaiseAsRupees(amountPaise)
+        });
+        customerEmailSent = true;
+      } catch {
+        customerEmailSent = false;
+      }
+    }
 
     return NextResponse.json({
       success: true,
       bookingId,
       amountPaise,
-      dateLabel: formatDateLabel(date, settings.timezone),
-      timeLabel: formatTimeLabel(time, settings.timezone),
-      checkoutUrl: order.redirectUrl,
-      emailConfigured: isEmailConfigured()
+      dateLabel,
+      timeLabel,
+      ownerEmailSent,
+      customerEmailSent
     });
   } catch (err) {
     const { releaseSlotHold } = await import("@/lib/booking-store");
     await releaseSlotHold(date, time);
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: "payment_order_failed", message: "We couldn't start the payment. Please try again or reach out via WhatsApp.", detail: message }, { status: 502 });
+    const detail = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: "submit_failed", message: "We couldn't submit your booking request. Please try again or reach out via WhatsApp.", detail }, { status: 502 });
   }
 }

@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import Image from "next/image";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { WhatsappIcon } from "./icons";
 import { SERVICES } from "@/lib/data";
 import { useBooking } from "@/lib/booking-context";
+import { getMinimumBookingFeePaise } from "@/lib/booking-fees";
+import { GPAY_ACCOUNT_NAME, GPAY_QR_IMAGE_SRC, GPAY_UPI_ID } from "@/lib/gpay-payment";
 
 const BOOKABLE = SERVICES.filter((s) => s.cat !== "soon");
+
+const MAX_SCREENSHOT_BYTES = 4 * 1024 * 1024; // ~4MB — comfortably under the API's base64 cap
 
 interface AvailabilityResponse {
   available: boolean;
@@ -15,13 +20,14 @@ interface AvailabilityResponse {
   message?: string;
 }
 
-interface StartResponse {
+interface SubmitResponse {
   success: boolean;
   bookingId: string;
   amountPaise: number;
   dateLabel: string;
   timeLabel: string;
-  checkoutUrl: string;
+  ownerEmailSent: boolean;
+  customerEmailSent: boolean;
 }
 
 function todayLocalDateString(): string {
@@ -38,6 +44,20 @@ function formatTimeButtonLabel(hhmm: string): string {
 
 function formatRupees(paise: number): string {
   return `₹${Math.round(paise / 100).toLocaleString("en-IN")}`;
+}
+
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Strip the "data:<mime>;base64," prefix — the API wants raw base64.
+      const comma = result.indexOf(",");
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 /** The exact pre-filled WhatsApp inquiry message format the practice uses. */
@@ -62,7 +82,7 @@ function buildInquiryMessage(opts: {
   ].join("\n");
 }
 
-type LiveStep = "form" | "summary" | "starting";
+type LiveStep = "form" | "summary" | "submitting" | "submitted";
 
 export default function BookingSlotPicker() {
   const { selectedService, setSelectedService } = useBooking();
@@ -82,11 +102,18 @@ export default function BookingSlotPicker() {
   const [message, setMessage] = useState("");
 
   const [liveStep, setLiveStep] = useState<LiveStep>("form");
-  const [startResult, setStartResult] = useState<StartResponse | null>(null);
-  const [startError, setStartError] = useState<string | null>(null);
+  const [submitResult, setSubmitResult] = useState<SubmitResponse | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitState, setSubmitState] = useState<"idle" | "slot_taken" | "error">("idle");
 
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotError, setScreenshotError] = useState<string | null>(null);
+  const [paidConfirmed, setPaidConfirmed] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const minDate = useMemo(() => todayLocalDateString(), []);
+  const amount = useMemo(() => getMinimumBookingFeePaise(selectedService || ""), [selectedService]);
 
   // Once, on mount: check whether the live booking backend is configured
   // and connected at all. If not, fall back to the manual WhatsApp/email
@@ -171,11 +198,38 @@ export default function BookingSlotPicker() {
     setLiveStep("summary");
   }
 
-  async function handleProceedToPay() {
-    setLiveStep("starting");
-    setStartError(null);
+  async function handleCopyUpi() {
     try {
-      const res = await fetch("/api/booking/start", {
+      await navigator.clipboard.writeText(GPAY_UPI_ID);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API can fail/be unavailable — the UPI ID is still shown as text to copy manually.
+    }
+  }
+
+  function handleScreenshotChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] || null;
+    setScreenshotError(null);
+    if (file && file.size > MAX_SCREENSHOT_BYTES) {
+      setScreenshotError("That file is too large — please attach a screenshot under 4MB.");
+      setScreenshotFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    setScreenshotFile(file);
+  }
+
+  async function handleSubmitRequest() {
+    setLiveStep("submitting");
+    setSubmitError(null);
+    try {
+      let screenshotBase64: string | undefined;
+      if (screenshotFile) {
+        screenshotBase64 = await readFileAsBase64(screenshotFile);
+      }
+
+      const res = await fetch("/api/booking/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -185,7 +239,10 @@ export default function BookingSlotPicker() {
           packageName: selectedService,
           date,
           time: selectedTime,
-          message: message.trim()
+          message: message.trim(),
+          ...(screenshotBase64
+            ? { screenshotBase64, screenshotFilename: screenshotFile!.name, screenshotMimeType: screenshotFile!.type || "image/jpeg" }
+            : {})
         })
       });
       const json = await res.json();
@@ -203,18 +260,16 @@ export default function BookingSlotPicker() {
 
       if (!res.ok) {
         setSubmitState("error");
-        setStartError(json.message || "Something went wrong. Please try again or reach out via WhatsApp.");
+        setSubmitError(json.message || "Something went wrong. Please try again or reach out via WhatsApp.");
         setLiveStep("summary");
         return;
       }
 
-      setStartResult(json as StartResponse);
-      // Full-page redirect to PhonePe's hosted checkout — this is a real
-      // payment page, not something to render inline.
-      window.location.href = (json as StartResponse).checkoutUrl;
+      setSubmitResult(json as SubmitResponse);
+      setLiveStep("submitted");
     } catch {
       setSubmitState("error");
-      setStartError("Something went wrong starting payment. Please try again or reach out via WhatsApp.");
+      setSubmitError("Something went wrong submitting your request. Please try again or reach out via WhatsApp.");
       setLiveStep("summary");
     }
   }
@@ -286,11 +341,38 @@ export default function BookingSlotPicker() {
     );
   }
 
-  // ---------- Live flow, step 2: booking summary + "Proceed to Pay" ----------
-  if (liveStep === "summary" || liveStep === "starting") {
-    const amount = startResult?.amountPaise ?? 50000;
+  // ---------- Live flow, final step: request submitted, awaiting manual verification ----------
+  if (liveStep === "submitted" && submitResult) {
+    return (
+      <div className="booking-panel">
+        <div className="booking-panel-head">
+          <h3>Request received</h3>
+          <span className="tz-badge">India Standard Time (IST)</span>
+        </div>
+        <p className="note-box">
+          Thanks, {name.split(" ")[0] || "there"} — your booking request for <strong>{selectedService}</strong> on{" "}
+          <strong>{submitResult.dateLabel}</strong> at <strong>{submitResult.timeLabel}</strong> has been received.
+        </p>
+        <p className="note-box">
+          This isn&apos;t confirmed yet. Vallari will check her GPay for your {formatRupees(submitResult.amountPaise)} payment and send
+          you a confirmation email with a calendar invite once she verifies it — usually within a few hours.
+        </p>
+        <p className="admin-hint">
+          Questions in the meantime? WhatsApp us at{" "}
+          <a href="https://wa.me/917769090258" target="_blank" rel="noopener noreferrer">
+            +91 77690 90258
+          </a>{" "}
+          or email vallari@kaasha.in.
+        </p>
+      </div>
+    );
+  }
+
+  // ---------- Live flow, step 2: booking summary + GPay payment + "I've paid" ----------
+  if (liveStep === "summary" || liveStep === "submitting") {
     const selectedPkg = BOOKABLE.find((s) => s.name === selectedService) ?? null;
     const balanceDue = selectedPkg?.price != null ? Math.max(0, selectedPkg.price - Math.round(amount / 100)) : null;
+    const canSubmit = paidConfirmed && liveStep !== "submitting";
     return (
       <div className="booking-panel">
         <div className="booking-panel-head">
@@ -323,9 +405,10 @@ export default function BookingSlotPicker() {
             <span>{email}</span>
           </div>
         </div>
+
         <p className="note-box">
-          A booking fee of <strong>{formatRupees(amount)}</strong> is due now to confirm this slot — this holds it for 15 minutes while
-          you complete payment, and your appointment is only confirmed once payment is verified.
+          A booking fee of <strong>{formatRupees(amount)}</strong> is due now via GPay/UPI to request this slot. Your appointment is
+          only confirmed once Vallari verifies your payment.
           {balanceDue !== null && balanceDue > 0 && (
             <>
               {" "}
@@ -334,12 +417,40 @@ export default function BookingSlotPicker() {
             </>
           )}
         </p>
-        {startError && <p className="admin-error">{startError}</p>}
+
+        <div className="gpay-card">
+          <Image src={GPAY_QR_IMAGE_SRC} alt="GPay QR code to pay Vallari Shah" width={160} height={160} className="gpay-qr-img" />
+          <div className="gpay-card-details">
+            <span className="gpay-account-name">{GPAY_ACCOUNT_NAME}</span>
+            <span className="admin-hint" style={{ margin: 0 }}>
+              Scan the QR with any UPI app, or pay to the UPI ID below.
+            </span>
+            <div className="upi-id-row">
+              <code>{GPAY_UPI_ID}</code>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={handleCopyUpi}>
+                {copied ? "Copied ✓" : "Copy UPI ID"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="field screenshot-field">
+          <label htmlFor="f-screenshot">Payment screenshot (optional, helps Vallari verify faster)</label>
+          <input id="f-screenshot" type="file" accept="image/*" ref={fileInputRef} onChange={handleScreenshotChange} />
+          {screenshotError && <p className="admin-error">{screenshotError}</p>}
+        </div>
+
+        <label className="paid-checkbox-row">
+          <input type="checkbox" checked={paidConfirmed} onChange={(e) => setPaidConfirmed(e.target.checked)} />
+          I&apos;ve paid {formatRupees(amount)} via GPay/UPI to the details above.
+        </label>
+
+        {submitError && <p className="admin-error">{submitError}</p>}
         <div className="form-actions">
-          <button type="button" className="btn btn-primary" disabled={liveStep === "starting"} onClick={handleProceedToPay}>
-            {liveStep === "starting" ? "Starting payment…" : `Proceed to Pay ${formatRupees(amount)}`}
+          <button type="button" className="btn btn-primary" disabled={!canSubmit} onClick={handleSubmitRequest}>
+            {liveStep === "submitting" ? "Submitting…" : "Submit booking request"}
           </button>
-          <button type="button" className="btn btn-ghost" disabled={liveStep === "starting"} onClick={() => setLiveStep("form")}>
+          <button type="button" className="btn btn-ghost" disabled={liveStep === "submitting"} onClick={() => setLiveStep("form")}>
             Back
           </button>
         </div>
@@ -423,7 +534,7 @@ export default function BookingSlotPicker() {
       </div>
       <p className="required-note">* required fields</p>
 
-      {submitState === "error" && <p className="admin-error">{startError}</p>}
+      {submitState === "error" && <p className="admin-error">{submitError}</p>}
 
       <div className="form-actions">
         <button type="submit" className="btn btn-primary">

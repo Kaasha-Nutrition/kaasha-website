@@ -1,37 +1,29 @@
 /**
- * The single shared "finalize this booking" routine, called from two
- * independent triggers — the customer's browser returning from PhonePe
- * Checkout (app/api/booking/verify) and PhonePe's server-to-server webhook
- * (app/api/webhooks/payments) — whichever happens first. Both triggers
- * converge here so there is exactly one place that ever re-checks the
- * calendar and creates the event, and it's written so that being called
- * twice (or ten times, by retries) is always safe.
- *
- * This function NEVER trusts anything the caller supplies about payment
- * status — it always re-verifies with PhonePe's Order Status API itself.
+ * Booking confirm/decline — triggered only from the password-gated
+ * /admin dashboard once Vallari has checked her own GPay activity for the
+ * customer's self-reported ₹500 payment. There's no payment gateway to
+ * re-verify against; the only thing re-checked here is the calendar (in
+ * case the exact slot got taken by something else between the request and
+ * her confirming it).
  */
 
 import { formatDateLabel, formatTimeLabel } from "./booking-format";
-import {
-  claimBookingFinalization,
-  getBooking,
-  releaseSlotHold,
-  updateBooking,
-  type BookingRecord
-} from "./booking-store";
-import { isEmailConfigured, sendCustomerConfirmationEmail, sendOwnerNotificationEmail, sendOwnerSlotLostAlertEmail } from "./email";
 import { formatPaiseAsRupees } from "./booking-fees";
+import { getBooking, releaseSlotHold, removeFromPendingIndex, updateBooking, type BookingRecord } from "./booking-store";
 import { SERVICES } from "./data";
+import {
+  isEmailConfigured,
+  sendCustomerConfirmationEmail,
+  sendOwnerBookingConfirmedReceiptEmail,
+  sendOwnerSlotUnavailableAlertEmail
+} from "./email";
 import { createCalendarEvent, getBusyIntervals, isNotConnectedError } from "./google-calendar";
-import { getOrderStatus } from "./payments";
 
 /**
  * The booking fee is a deposit, not the full package price — the rest is
  * collected by Vallari directly at the consultation, not through the
- * website. This surfaces that remaining amount for the confirmation email
- * and UI, so customers aren't confused about paying only ₹500 of a
- * ₹4,500 package. Returns null if the package's full price is unknown or
- * the booking fee already covers it.
+ * website. Returns null if the package's full price is unknown or the
+ * booking fee already covers it.
  */
 function balanceDueLabel(packageName: string, amountPaisePaid: number): string | undefined {
   const pkg = SERVICES.find((s) => s.name === packageName);
@@ -40,61 +32,25 @@ function balanceDueLabel(packageName: string, amountPaisePaid: number): string |
   return balance > 0 ? formatPaiseAsRupees(balance * 100) : undefined;
 }
 
-export type FinalizeOutcome =
-  | { status: "not_found" }
-  | { status: "pending"; booking: BookingRecord }
-  | { status: "payment_failed"; booking: BookingRecord }
-  | { status: "processing" }
-  | { status: "confirmed"; booking: BookingRecord }
-  | { status: "payment_captured_slot_lost"; booking: BookingRecord }
-  | { status: "error"; message: string };
-
 function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
   return aStart < bEnd && aEnd > bStart;
 }
 
-export async function finalizeBooking(bookingId: string): Promise<FinalizeOutcome> {
+export type ConfirmOutcome =
+  | { status: "not_found" }
+  | { status: "already_resolved"; booking: BookingRecord }
+  | { status: "slot_unavailable"; booking: BookingRecord }
+  | { status: "confirmed"; booking: BookingRecord }
+  | { status: "error"; message: string };
+
+/** Confirm a pending booking: re-check the calendar is still free, create the event idempotently, and email both sides. */
+export async function confirmBooking(bookingId: string): Promise<ConfirmOutcome> {
   const booking = await getBooking(bookingId);
   if (!booking) return { status: "not_found" };
-
-  // Already resolved by an earlier call — idempotent replay, not an error.
-  if (booking.status === "confirmed") return { status: "confirmed", booking };
-  if (booking.status === "payment_captured_slot_lost") return { status: "payment_captured_slot_lost", booking };
-  if (booking.status === "payment_failed") return { status: "payment_failed", booking };
-
-  // Authoritative, server-to-server check — never trust the trigger source.
-  let orderStatus;
-  try {
-    orderStatus = await getOrderStatus(bookingId);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return { status: "error", message };
+  if (booking.status !== "pending_verification") {
+    return { status: "already_resolved", booking };
   }
 
-  if (orderStatus.state === "FAILED") {
-    const updated = await updateBooking(bookingId, { status: "payment_failed" });
-    await releaseSlotHold(booking.date, booking.time);
-    return { status: "payment_failed", booking: updated || booking };
-  }
-
-  if (orderStatus.state === "PENDING") {
-    return { status: "pending", booking };
-  }
-
-  // orderStatus.state === "COMPLETED" from here on.
-  const claimed = await claimBookingFinalization(bookingId);
-  if (!claimed) {
-    // The other trigger (webhook or browser-return) is already handling
-    // this exact booking right now. Report "processing" — the caller
-    // should not create anything itself.
-    const latest = await getBooking(bookingId);
-    if (latest?.status === "confirmed") return { status: "confirmed", booking: latest };
-    if (latest?.status === "payment_captured_slot_lost") return { status: "payment_captured_slot_lost", booking: latest };
-    return { status: "processing" };
-  }
-
-  // Final freebusy re-check, immediately before creating the event —
-  // the last-moment authoritative check that the exact slot is still free.
   try {
     const dayStartISO = new Date(new Date(booking.startISO).setUTCHours(0, 0, 0, 0)).toISOString();
     const dayEndISO = new Date(new Date(booking.startISO).setUTCHours(23, 59, 59, 999)).toISOString();
@@ -103,13 +59,16 @@ export async function finalizeBooking(bookingId: string): Promise<FinalizeOutcom
     const end = new Date(booking.endISO);
     const stillFree = !busy.some((b) => overlaps(start, end, new Date(b.start), new Date(b.end)));
 
+    const dateLabel = formatDateLabel(booking.date, booking.timezone);
+    const timeLabel = formatTimeLabel(booking.time, booking.timezone);
+
     if (!stillFree) {
-      const updated = await updateBooking(bookingId, { status: "payment_captured_slot_lost" });
-      const dateLabel = formatDateLabel(booking.date, booking.timezone);
-      const timeLabel = formatTimeLabel(booking.time, booking.timezone);
+      const updated = await updateBooking(bookingId, { status: "slot_unavailable" });
+      await releaseSlotHold(booking.date, booking.time);
+      await removeFromPendingIndex(bookingId);
       if (isEmailConfigured()) {
         try {
-          await sendOwnerSlotLostAlertEmail({
+          await sendOwnerSlotUnavailableAlertEmail({
             bookingId,
             customerName: booking.name,
             customerEmail: booking.email,
@@ -121,14 +80,12 @@ export async function finalizeBooking(bookingId: string): Promise<FinalizeOutcom
             amountLabel: formatPaiseAsRupees(booking.amountPaise)
           });
         } catch {
-          // best-effort — never blocks reporting the real outcome to the customer
+          // best-effort
         }
       }
-      return { status: "payment_captured_slot_lost", booking: updated || booking };
+      return { status: "slot_unavailable", booking: updated || booking };
     }
 
-    // Still free — create the event. `id` makes this idempotent: a retry
-    // either creates it once or (409) is treated as already-created.
     const balanceLabel = balanceDueLabel(booking.packageName, booking.amountPaise);
     const event = await createCalendarEvent({
       summary: `Kaasha — ${booking.packageName} — ${booking.name}`,
@@ -137,7 +94,7 @@ export async function finalizeBooking(bookingId: string): Promise<FinalizeOutcom
         `Email: ${booking.email}`,
         `Mobile: ${booking.mobile}`,
         `Package: ${booking.packageName}`,
-        `Booking fee paid: ${formatPaiseAsRupees(booking.amountPaise)}`,
+        `Booking fee (GPay, self-reported & confirmed by Vallari): ${formatPaiseAsRupees(booking.amountPaise)}`,
         ...(balanceLabel ? [`Balance to collect at consultation: ${balanceLabel}`] : []),
         `Goal/Message: ${booking.message || "—"}`
       ].join("\n"),
@@ -147,9 +104,6 @@ export async function finalizeBooking(bookingId: string): Promise<FinalizeOutcom
       id: bookingId,
       attendeeEmail: booking.email
     });
-
-    const dateLabel = formatDateLabel(booking.date, booking.timezone);
-    const timeLabel = formatTimeLabel(booking.time, booking.timezone);
 
     let emailSent = false;
     if (isEmailConfigured()) {
@@ -166,7 +120,7 @@ export async function finalizeBooking(bookingId: string): Promise<FinalizeOutcom
           balanceLabel
         };
         await sendCustomerConfirmationEmail(details);
-        await sendOwnerNotificationEmail(details);
+        await sendOwnerBookingConfirmedReceiptEmail(details);
         emailSent = true;
       } catch {
         emailSent = false;
@@ -180,8 +134,8 @@ export async function finalizeBooking(bookingId: string): Promise<FinalizeOutcom
       emailSent
     });
 
-    // The event now exists permanently — the temporary slot-hold lock is no longer needed.
     await releaseSlotHold(booking.date, booking.time);
+    await removeFromPendingIndex(bookingId);
 
     return { status: "confirmed", booking: updated || booking };
   } catch (err) {
@@ -191,4 +145,29 @@ export async function finalizeBooking(bookingId: string): Promise<FinalizeOutcom
     const message = err instanceof Error ? err.message : "Unknown error";
     return { status: "error", message };
   }
+}
+
+export type DeclineOutcome =
+  | { status: "not_found" }
+  | { status: "already_resolved"; booking: BookingRecord }
+  | { status: "declined"; booking: BookingRecord }
+  | { status: "error"; message: string };
+
+/**
+ * Decline a pending booking (e.g. the ₹500 was never actually received) —
+ * releases the slot hold and leaves Vallari to contact the customer
+ * herself (their mobile number is shown right in /admin). No automated
+ * customer email is sent here, deliberately — a decline usually needs a
+ * human conversation, not a form letter.
+ */
+export async function declineBooking(bookingId: string, reason?: string): Promise<DeclineOutcome> {
+  const booking = await getBooking(bookingId);
+  if (!booking) return { status: "not_found" };
+  if (booking.status !== "pending_verification") {
+    return { status: "already_resolved", booking };
+  }
+  const updated = await updateBooking(bookingId, { status: "declined", declineReason: reason || undefined });
+  await releaseSlotHold(booking.date, booking.time);
+  await removeFromPendingIndex(bookingId);
+  return { status: "declined", booking: updated || booking };
 }
