@@ -11,8 +11,12 @@
  *
  * Required environment variables (set only in the Vercel dashboard, never
  * in source or in chat): GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
- * GOOGLE_REDIRECT_URI. Only the `calendar.events` scope is requested —
- * enough to check free/busy and create events, nothing broader.
+ * GOOGLE_REDIRECT_URI. Two scopes are requested, both narrow:
+ * `calendar.events` (create/edit events) and `calendar.events.freebusy`
+ * (read free/busy only — `calendar.events` alone does NOT grant freebusy
+ * access; Google's freebusy.query requires its own scope, confirmed live
+ * via a 403 ACCESS_TOKEN_SCOPE_INSUFFICIENT error when only the events
+ * scope was requested). Nothing broader than these two is ever requested.
  */
 
 import { isKvConfigured, kvDel, kvGet, kvSet } from "./kv";
@@ -20,7 +24,7 @@ import { isKvConfigured, kvDel, kvGet, kvSet } from "./kv";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CALENDAR_API = "https://www.googleapis.com/calendar/v3";
-const SCOPE = "https://www.googleapis.com/auth/calendar.events";
+const SCOPE = "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.events.freebusy";
 
 const REFRESH_TOKEN_KEY = "kaasha:google-refresh-token";
 const ACCESS_TOKEN_CACHE_KEY = "kaasha:google-access-token";
